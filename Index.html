@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Becas - Fotocopiado</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container header-grid">
+            <div class="header-left">
+                <h1>Sistema de Becas</h1>
+                <div class="header-subtitle">Gestión de fotocopias para estudiantes</div>
+            </div>
+            <div class="header-right">
+                <div class="turno-selector header-control">
+                    <label>Turno:</label>
+                    <select id="turnoSelect">
+                        <option value="Mañana">Mañana</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Unico">Único</option>
+                    </select>
+                </div>
+                <div class="digital-clock header-control" id="digitalClock" aria-live="polite">--:--:--</div>
+                <div id="syncStatus" class="sync-badge sync-offline" title="Estado de sincronización">Modo offline</div>
+                <div class="header-actions">
+                    <button id="btnRefresh" class="icon-btn" title="Actualizar">
+                        <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.13 3.36L1 14"/></svg>
+                    </button>
+                    <button id="btnDownload" class="icon-btn" title="Descargar">
+                        <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </button>
+                    <button id="btnStats" class="icon-btn" title="Estadísticas">
+                        <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="14" x2="8" y2="11"/><line x1="12" y1="17" x2="12" y2="11"/><line x1="16" y1="10" x2="16" y2="11"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card search-card">
+            <div class="search-card-header">
+                <div>
+                    <div class="search-title">Buscar Cliente</div>
+                    <div class="search-subtitle">Busca por nombre, apellido o DNI</div>
+                </div>
+            </div>
+            <div class="search-body search-row">
+                <div class="search-input-wrapper" style="flex:1; height: 45px;">
+                    <svg class="svg-icon search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input style="height: 35px;"
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Buscar cliente..."
+                        class="search-input"
+                    >
+                </div>
+                <div style="margin-left:1rem;">
+                    <button class="btn btn-primary" onclick="openAddClientModal()">
+                        <svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M12 5v14M5 12h14"/></svg>
+                        Agregar Cliente
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta de clientes registrados -->
+        <div class="card clients-card">
+            <div class="card-header clients-header">
+                <div>
+                    <h2>Clientes Registrados</h2>
+                    <div id="clientCount" class="badge">0 clientes</div>
+                </div>
+                                <div class="clients-header-actions">
+                                        <button class="btn btn-secondary" onclick="openFiltersModal()">
+                                            <svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l7 9v7l6-3v-4l7-9z"/></svg>
+                                            Filtros
+                                        </button>
+                                </div>
+            </div>
+            <div id="clientsList" class="clients-list">
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Agregar Cliente -->
+    <div id="addClientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Agregar Nuevo Cliente</h3>
+                <button class="close-btn" onclick="closeModal('addClientModal')">&times;</button>
+            </div>
+            <form id="addClientForm" onsubmit="handleAddClient(event)">
+                <div class="form-group">
+                    <label>Nombre y Apellido *</label>
+                    <input type="text" id="nombreApellido" required>
+                </div>
+                <div class="form-group">
+                    <label>DNI *</label>
+                    <input type="text" id="dni" required pattern="[0-9]{7,8}">
+                </div>
+                <div class="form-group">
+                    <label>Carrera *</label>
+                    <input type="text" id="carrera" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Instituto *</label>
+                        <select id="instituto" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="Salud">Salud</option>
+                            <option value="Sociales">Sociales</option>
+                            <option value="Ingeniería">Ingeniería</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Beca *</label>
+                        <select id="tipoBeca" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="A">A (352 carillas/mes)</option>
+                            <option value="B">B (440 carillas/mes)</option>
+                            <option value="C">C (460 carillas/mes)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Número de Orden *</label>
+                    <input type="number" id="numeroOrden" required min="1">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addClientModal')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Agregar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Editar Cliente -->
+    <div id="editClientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Cliente</h3>
+                <button class="close-btn" onclick="closeModal('editClientModal')">&times;</button>
+            </div>
+            <form id="editClientForm" onsubmit="handleEditClient(event)">
+                <input type="hidden" id="editClientId">
+                <div class="form-group">
+                    <label>Nombre y Apellido *</label>
+                    <input type="text" id="editNombreApellido" required>
+                </div>
+                <div class="form-group">
+                    <label>DNI *</label>
+                    <input type="text" id="editDni" required pattern="[0-9]{7,8}">
+                </div>
+                <div class="form-group">
+                    <label>Carrera *</label>
+                    <input type="text" id="editCarrera" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Instituto *</label>
+                        <select id="editInstituto" required>
+                            <option value="Salud">Salud</option>
+                            <option value="Sociales">Sociales</option>
+                            <option value="Ingeniería">Ingeniería</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Beca *</label>
+                        <select id="editTipoBeca" required>
+                            <option value="A">A (352 carillas/mes)</option>
+                            <option value="B">B (440 carillas/mes)</option>
+                            <option value="C">C (460 carillas/mes)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Número de Orden *</label>
+                    <input type="number" id="editNumeroOrden" required min="1">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editClientModal')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Agregar Impresión -->
+    <div id="addImpresionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Agregar Impresión</h3>
+                <button class="close-btn" onclick="closeModal('addImpresionModal')">&times;</button>
+            </div>
+            <div class="impresion-info">
+                <div class="info-row">
+                    <span class="label">Cliente:</span>
+                    <span id="impresionClientName" class="value"></span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Tipo de Beca:</span>
+                    <span id="impresionBecaType" class="value"></span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Límite Mensual:</span>
+                    <span id="impresionLimit" class="value"></span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Carillas Restantes:</span>
+                    <span id="impresionRemaining" class="value"></span>
+                </div>
+            </div>
+            <form id="addImpresionForm" onsubmit="handleAddImpresion(event)">
+                <input type="hidden" id="impresionClientId">
+                <div class="form-group">
+                    <label>Cantidad de Carillas *</label>
+                    <input type="number" id="cantidadCarillas" required min="1">
+                </div>
+                <div id="warningMessage" class="warning-message" style="display: none;">
+                    ⚠️ Esta cantidad excede el límite mensual del cliente
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addImpresionModal')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar Impresión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Historial -->
+    <div id="historialModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Historial de Impresiones</h3>
+                <button class="close-btn" onclick="closeModal('historialModal')">&times;</button>
+            </div>
+            <div id="historialContent" class="historial-content">
+                <!-- El historial se cargará aquí -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Estadísticas -->
+    <div id="statsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Estadísticas del Mes</h3>
+                <button class="close-btn" onclick="closeModal('statsModal')">&times;</button>
+            </div>
+            <div id="statsContent" class="stats-content">
+                <!-- Las estadísticas se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Filtros -->
+    <div id="filtersModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Filtros Avanzados</h3>
+                <button class="close-btn" onclick="closeModal('filtersModal')">&times;</button>
+            </div>
+            <form id="filtersForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Mes</label>
+                        <select id="filterMes">
+                            <option value="">Todos</option>
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Año</label>
+                        <select id="filterAno">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Turno</label>
+                        <select id="filterTurno">
+                            <option value="">Todos</option>
+                            <option value="Mañana">Mañana</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noche">Noche</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Beca</label>
+                        <select id="filterTipoBeca">
+                            <option value="">Todos</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Instituto</label>
+                    <select id="filterInstituto">
+                        <option value="">Todos</option>
+                        <option value="Salud">Salud</option>
+                        <option value="Sociales">Sociales</option>
+                        <option value="Ingeniería">Ingeniería</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="clearFilters()">Limpiar Filtros</button>
+                    <button type="button" class="btn btn-primary" onclick="applyFilters()">Aplicar Filtros</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Eliminar Cliente -->
+    <div id="deleteClientModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Eliminar Cliente</h3>
+                <button class="close-btn" onclick="closeModal('deleteClientModal')">&times;</button>
+            </div>
+            <div class="delete-warning">
+                <p>¿Estás seguro de que deseas eliminar este cliente?</p>
+                <p id="deleteClientName" class="client-name"></p>
+                <p class="warning-text">Esta acción no se puede deshacer y se eliminarán todos los registros de impresiones asociados.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('deleteClientModal')">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteClient()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Reiniciar Mes -->
+    <div id="resetMonthModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Reiniciar Mes</h3>
+                <button class="close-btn" onclick="closeModal('resetMonthModal')">&times;</button>
+            </div>
+            <div class="delete-warning">
+                <p>¿Estás seguro de que deseas reiniciar el mes?</p>
+                <p class="warning-text">Esto restablecerá el contador de carillas de todos los clientes a su límite mensual.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('resetMonthModal')">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmResetMonth()">Reiniciar Mes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de notificaciones -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Modal: Descargar -->
+    <div id="downloadModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Descargar datos por mes</h3>
+                <button class="close-btn" onclick="closeModal('downloadModal')">&times;</button>
+            </div>
+            <div style="padding:1.25rem;">
+                <div class="form-group">
+                    <label>Mes</label>
+                    <select id="downloadMes">
+                        <option value="">Seleccionar mes</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Año</label>
+                    <select id="downloadAno"></select>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+                    <button class="btn btn-secondary" onclick="closeModal('downloadModal')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="downloadMonthData()">Descargar CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="Main.js"></script>
+</body>
+</html>
