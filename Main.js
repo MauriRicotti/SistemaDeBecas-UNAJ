@@ -51,6 +51,14 @@ let currentFilters = {}
 let currentTurno = "Mañana"
 let clientToDelete = null
 let currentHistorialClientId = null
+let _firstRenderDone = false
+// Paginación
+let currentPage = 1
+let pageSize = 6 // default
+// bandera interna para indicar que el próximo render viene de una paginación
+let __justPaginated = false
+// Cuando hay muchos clientes, por defecto solo renderizamos los primeros N para ahorrar recursos
+let showAllClients = false
 
 document.addEventListener("DOMContentLoaded", () => {
   loadData()
@@ -61,22 +69,70 @@ document.addEventListener("DOMContentLoaded", () => {
   const turnoSelect = document.getElementById("turnoSelect")
   turnoSelect.value = currentTurno
   setupTurnoTimers()
-  startDigitalClock()
+    startDigitalClock()
+  
+    // Wire UI for download clients modal button (Deploy handler and fallback)
+    async function runDownloadClientsHandler(e) {
+      try {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault()
+        console.debug('runDownloadClientsHandler invoked', e)
+        const reportEl = document.getElementById('downloadReport')
+        if (reportEl) reportEl.textContent = 'Generando PDF de clientes...'
+        const instituto = document.getElementById('downloadInstituto') ? document.getElementById('downloadInstituto').value : ''
+        const tipoBeca = document.getElementById('downloadTipoBeca') ? document.getElementById('downloadTipoBeca').value : ''
+        let clientsForDownload = [...clients]
+        if (instituto) clientsForDownload = clientsForDownload.filter(c => (c.instituto || '') === instituto)
+        if (tipoBeca) clientsForDownload = clientsForDownload.filter(c => ((c.tipoBeca || '').toString().toUpperCase()) === (tipoBeca || '').toString().toUpperCase())
+        if (!clientsForDownload || clientsForDownload.length === 0) {
+          if (reportEl) reportEl.textContent = 'No hay clientes para los filtros seleccionados.'
+          console.warn('download modal: no hay clientes para los filtros seleccionados', { instituto, tipoBeca, clientsLen: clients.length })
+          return
+        }
+        const blob = await createClientsPdfBlob({ instituto: instituto || null, tipoBeca: tipoBeca || null, clientsList: clientsForDownload })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const sanitize = s => (s || '').toString().trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-()]/g, '')
+        const instPart = sanitize(instituto || (clientsForDownload[0] && clientsForDownload[0].instituto) || 'Todos')
+        const tipoPart = sanitize(tipoBeca || (clientsForDownload[0] && clientsForDownload[0].tipoBeca) || 'Todos')
+    // Nombre de archivo solicitado
+    a.download = `Base de datos - Beca de apuntes 2025.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        if (reportEl) reportEl.textContent = 'PDF generado y descargado.'
+      } catch (err) {
+        console.error('Error generando PDF de clientes', err)
+        const reportEl = document.getElementById('downloadReport')
+        if (reportEl) reportEl.textContent = 'Error generando PDF: ' + (err && err.message ? err.message : String(err))
+      }
+    }
+  
+    const btn = document.getElementById('btnDownloadClients')
+    if (btn) {
+      btn.addEventListener('click', runDownloadClientsHandler)
+    } else {
+      console.debug('#btnDownloadClients no encontrado; se agregará listener delegado como fallback')
+    }
+  
+    document.addEventListener('click', (ev) => {
+      try {
+        const target = ev.target || ev.srcElement
+        const btnEl = target && typeof target.closest === 'function' ? target.closest('#btnDownloadClients') : null
+        if (btnEl) runDownloadClientsHandler(ev)
+      } catch (e) {
+        console.warn('Error en listener delegado de btnDownloadClients', e)
+      }
+    })
+    // Exponer handler para depuración manual desde consola
+    try { window.runDownloadClientsHandler = runDownloadClientsHandler } catch (e) {}
 })
 
-// Cargar SheetJS dinámicamente cuando se necesite
-async function ensureSheetJS() {
-  if (window.XLSX) return window.XLSX
-  try {
-    await import('https://cdn.sheetjs.com/xlsx-latest/package/dist/shim.min.js')
-    const x = await import('https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js')
-    window.XLSX = x
-    return window.XLSX
-  } catch (err) {
-    console.error('Error cargando SheetJS', err)
-    throw err
-  }
-}
+// Forzar ir arriba al recargar la página (asegura UX consistente)
+window.addEventListener('load', () => {
+  try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) } catch (e) { window.scrollTo(0,0) }
+})
 
 // Cargar jsPDF dinámicamente
 async function ensureJsPDF() {
@@ -400,6 +456,207 @@ async function createBookPdfBlob({ instituto = null, tipoBeca = null, clientsFor
   return doc.output('blob')
 }
 
+// Crea un PDF tipo lista/tabla con la base de clientes filtrada y devuelve Blob
+async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clientsList = [] }) {
+  const jspdfModule = await ensureJsPDF()
+  const jsPDF = jspdfModule.jsPDF || jspdfModule
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+
+  const margin = 14
+  const pageWidth = 210
+  const usableWidth = pageWidth - margin * 2
+  let y = 20
+
+  // Título principal (exacto)
+  doc.setFontSize(18)
+  doc.setFont(undefined, 'bold')
+  const mainTitle = 'Base de datos - Beca de apuntes 2025'
+  doc.text(mainTitle, pageWidth / 2, y, { align: 'center' })
+  y += 10
+
+  // Resumen estadístico arriba
+  const total = clientsList.length
+  const byInstitute = { Salud: 0, Sociales: 0, Ingeniería: 0 }
+  const byTipo = { A: 0, B: 0, C: 0 }
+  clientsList.forEach(c => {
+    if (c && c.instituto && byInstitute.hasOwnProperty(c.instituto)) byInstitute[c.instituto]++
+    const t = (c && c.tipoBeca) ? c.tipoBeca.toString().toUpperCase() : ''
+    if (byTipo.hasOwnProperty(t)) byTipo[t]++
+  })
+
+  doc.setFontSize(11)
+  doc.setFont(undefined, 'normal')
+  doc.text(`Total registrados: ${total}`, margin, y)
+  y += 7
+  doc.text(`Por instituto: Salud ${byInstitute.Salud} — Sociales ${byInstitute.Sociales} — Ingeniería ${byInstitute['Ingeniería']}`, margin, y)
+  y += 7
+  doc.text(`Por tipo de beca: A ${byTipo.A} — B ${byTipo.B} — C ${byTipo.C}`, margin, y)
+  y += 12
+
+  // Preparar orden y agrupación por instituto
+  const institutosOrden = ['Salud', 'Sociales', 'Ingeniería']
+  // columnas: Nombre | DNI | Carrera | Tipo | N° Orden
+  const colPercents = [0.38, 0.16, 0.28, 0.08, 0.10]
+  const cols = colPercents.map(p => Math.floor(p * usableWidth))
+  // base mínima de fila (mm). Las filas crecerán si el texto envuelto ocupa más líneas
+  const baseRowHeight = 8
+  const lineHeight = 4.2 // aproximado en mm por línea (ajustable)
+
+  // Helpers para pintar cabecera de instituto (color por instrucción)
+  const instituteHeaderColor = (inst) => {
+    if (inst === 'Salud') return [255, 204, 0] // amarillo
+    if (inst === 'Sociales') return [153, 204, 255] // celeste
+    if (inst === 'Ingeniería') return [220, 53, 69] // rojo
+    return [240,240,240]
+  }
+  // calculamos posiciones X de cada columna a partir de los anchos
+  const colWidths = cols
+  const colX = []
+  colX[0] = margin
+  for (let i = 1; i < colWidths.length; i++) {
+    colX[i] = colX[i - 1] + colWidths[i - 1]
+  }
+  const tableRight = margin + colWidths.reduce((s, v) => s + v, 0)
+
+  const renderTableHeader = (inst) => {
+    // cabecera coloreada con título del instituto
+    const headerBarHeight = 10
+    const [r,g,b] = instituteHeaderColor(inst)
+    doc.setFillColor(r,g,b)
+    doc.rect(margin, y - 6, usableWidth, headerBarHeight, 'F')
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.setTextColor(0)
+    doc.text(inst, margin + 2, y)
+    y += headerBarHeight + 4
+
+    // fila de encabezados de la tabla (con fondo claro)
+    const headerHeight = 9
+    doc.setFillColor(245,245,245)
+    doc.rect(margin, y - 2, usableWidth, headerHeight, 'F')
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    const headers = ['Nombre', 'DNI', 'Carrera', 'Tipo', 'N° Orden']
+    for (let i = 0; i < headers.length; i++) {
+      const x = colX[i]
+      const w = colWidths[i]
+      // centrar horizontalmente el encabezado dentro de la celda
+      doc.text(headers[i], x + w / 2, y + headerHeight / 2 + 1, { align: 'center' })
+      // dibujar líneas verticales
+      doc.setDrawColor(180)
+      doc.setLineWidth(0.4)
+      doc.line(x, y - 2, x, y - 2 + Math.max(headerHeight, baseRowHeight))
+    }
+    // línea final derecha
+    doc.line(tableRight, y - 2, tableRight, y - 2 + Math.max(headerHeight, baseRowHeight))
+    // línea inferior de encabezado
+    doc.setDrawColor(160)
+    doc.setLineWidth(0.5)
+    doc.line(margin, y - 2 + headerHeight, tableRight, y - 2 + headerHeight)
+
+    y += headerHeight + 2
+    doc.setFont(undefined, 'normal')
+    doc.setTextColor(0)
+  }
+
+  const bottomLimit = 287
+  let page = 1
+
+  for (const inst of institutosOrden) {
+    // si se pasó un filtro de instituto, saltar los otros
+    if (instituto && instituto !== inst) continue
+
+    const items = clientsList
+      .filter(c => (c.instituto || '') === inst)
+      // ordenar por tipo A then B then C, y dentro por numeroOrden asc
+      .sort((a,b) => {
+        const ta = (a.tipoBeca||'').toString().toUpperCase()
+        const tb = (b.tipoBeca||'').toString().toUpperCase()
+        if (ta !== tb) return ta.localeCompare(tb)
+        const na = Number.parseInt(a.numeroOrden) || 0
+        const nb = Number.parseInt(b.numeroOrden) || 0
+        return na - nb
+      })
+
+    if (!items || items.length === 0) continue
+
+    // Añadir un pequeño espacio antes de la tabla si no hay suficiente espacio en la página
+    if (y + 60 > 287) {
+      // pie antes de cambiar de página
+      doc.setFontSize(9)
+      doc.text(`Generado: ${new Date().toLocaleDateString()}`, margin, 287)
+      doc.text(`Página ${page}`, pageWidth - margin, 287, { align: 'right' })
+      doc.addPage()
+      page++
+      y = 20
+    }
+
+    renderTableHeader(inst)
+
+    for (const c of items) {
+      // Preparar textos de cada celda y calcular altura necesaria
+      const values = [c.nombreApellido || '-', c.dni || '-', c.carrera || '-', (c.tipoBeca||'-'), (c.numeroOrden||'')]
+      const wrappedCols = []
+      let maxLines = 0
+      for (let j = 0; j < values.length; j++) {
+        const w = colWidths[j]
+        const txt = String(values[j])
+        const wrapped = doc.splitTextToSize(txt, Math.max(4, w - 4))
+        wrappedCols.push(wrapped)
+        if (wrapped.length > maxLines) maxLines = wrapped.length
+      }
+
+      const neededHeight = Math.max(baseRowHeight, Math.ceil(maxLines * lineHeight)) + 4 // padding
+
+      // Salto de página si no hay espacio suficiente
+      if (y + neededHeight > bottomLimit) {
+        doc.setFontSize(9)
+        doc.text(`Generado: ${new Date().toLocaleDateString()}`, margin, bottomLimit)
+        doc.text(`Página ${page}`, pageWidth - margin, bottomLimit, { align: 'right' })
+        doc.addPage()
+        page++
+        y = 20
+        renderTableHeader(inst)
+      }
+
+      // Dibujar bordes de las celdas (grid)
+      doc.setDrawColor(170)
+      doc.setLineWidth(0.35)
+      for (let j = 0; j < colWidths.length; j++) {
+        const x = colX[j]
+        const w = colWidths[j]
+        // rect para la celda (sin relleno)
+        doc.rect(x, y - 2, w, neededHeight)
+      }
+
+      // Dibujar texto en cada celda (con padding)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      for (let j = 0; j < wrappedCols.length; j++) {
+        const x = colX[j]
+        const w = colWidths[j]
+        const lines = wrappedCols[j]
+        const textX = x + 2
+        const textY = y + 3
+        // doc.text acepta array para múltiples líneas
+        doc.text(lines, textX, textY)
+      }
+
+      y += neededHeight + 2
+    }
+
+    y += 6
+  }
+
+  // pie final
+  doc.setFontSize(9)
+  doc.text(`Generado: ${new Date().toLocaleDateString()}`, margin, 287)
+  doc.text(`Página ${page}`, pageWidth - margin, 287, { align: 'right' })
+
+  // Aseguramos retorno del blob
+  return doc.output('blob')
+}
+
 // Gera un ZIP con los 9 libros (combinaciones) y devuelve Blob del ZIP
 async function generateAllBooksZip() {
   // cargar JSZip dinámicamente (import dinámico o fallback por <script>)
@@ -488,221 +745,246 @@ async function generateAllBooksZip() {
 
 // Wire UI generate book button
 document.addEventListener('DOMContentLoaded', () => {
+  // extraer handler a función nombrada para poder reusar y depurar fácilmente
+  async function runGenerateBookHandler(e) {
+    try {
+      if (e && typeof e.preventDefault === 'function') e.preventDefault()
+      console.debug('runGenerateBookHandler invoked', e)
+
+      const reportEl = document.getElementById('generateReport')
+      if (reportEl) reportEl.textContent = 'Generando PDF...'
+      else console.warn('Elemento #generateReport no encontrado en el DOM')
+
+      const institutoEl = document.getElementById('generateInstituto')
+      const tipoEl = document.getElementById('generateTipoBeca')
+      const genAllEl = document.getElementById('generateAllBooks')
+      const instituto = institutoEl ? institutoEl.value : ''
+      const tipoBeca = tipoEl ? tipoEl.value : ''
+      const generateAllBooks = genAllEl ? genAllEl.checked : false
+
+      if (generateAllBooks) {
+        if (reportEl) reportEl.textContent = 'Generando todos los libros y empaquetando en ZIP...'
+        console.debug('Generar todos los libros (ZIP) solicitado')
+        const zipBlob = await generateAllBooksZip()
+        const url = URL.createObjectURL(zipBlob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `libros_becas_${new Date().toISOString().slice(0,10)}.zip`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        if (reportEl) reportEl.textContent = 'ZIP descargado con los libros disponibles.'
+        return
+      }
+
+      // determinar clientes por filtros
+      const all = (!instituto && !tipoBeca)
+      let clientsForBook = []
+      if (all) {
+        clientsForBook = [...clients]
+      } else {
+        clientsForBook = [...clients]
+        if (instituto) clientsForBook = clientsForBook.filter(c => (c.instituto || '').toString() === instituto)
+        if (tipoBeca) clientsForBook = clientsForBook.filter(c => (c.tipoBeca || '').toString().toUpperCase() === (tipoBeca || '').toString().toUpperCase())
+      }
+
+      if (!clientsForBook || clientsForBook.length === 0) {
+        console.warn('generate modal: no hay clientes para los filtros seleccionados', { instituto, tipoBeca, clientsLen: clients.length })
+        if (reportEl) reportEl.textContent = 'Error generando PDF: No hay clientes seleccionados para esos filtros.'
+        return
+      }
+
+      // generar blob y forzar descarga
+      const blob = await createBookPdfBlob({ instituto: instituto || null, tipoBeca: tipoBeca || null, clientsForBook })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const sanitize = s => (s || '').toString().trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-()]/g, '')
+      const instPart = sanitize(instituto || (clientsForBook[0] && clientsForBook[0].instituto) || 'Todos')
+      const tipoPart = sanitize(tipoBeca || (clientsForBook[0] && clientsForBook[0].tipoBeca) || 'Todos')
+      a.download = `Libro de becas (${instPart})(${tipoPart}).pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      if (reportEl) reportEl.textContent = 'PDF generado y descargado.'
+    } catch (err) {
+      console.error('Error generando PDF', err)
+      const reportEl = document.getElementById('generateReport')
+      if (reportEl) reportEl.textContent = 'Error generando PDF: ' + (err && err.message ? err.message : String(err))
+    }
+  }
+
+  // intentar binding directo (normal)
   const btn = document.getElementById('btnGenerateBook')
   if (btn) {
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault()
-      const reportEl = document.getElementById('generateReport')
-      reportEl.textContent = 'Generando PDF...'
-      const instituto = document.getElementById('generateInstituto') ? document.getElementById('generateInstituto').value : ''
-      const tipoBeca = document.getElementById('generateTipoBeca') ? document.getElementById('generateTipoBeca').value : ''
-      const generateAllBooks = document.getElementById('generateAllBooks') ? document.getElementById('generateAllBooks').checked : false
-      try {
-        if (generateAllBooks) {
-          reportEl.textContent = 'Generando todos los libros y empaquetando en ZIP...'
-          const zipBlob = await generateAllBooksZip()
-          const url = URL.createObjectURL(zipBlob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = `libros_becas_${new Date().toISOString().slice(0,10)}.zip`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(url)
-          reportEl.textContent = 'ZIP descargado con los libros disponibles.'
-        } else {
-          // determinar clientes por filtros
-          const all = (!instituto && !tipoBeca)
-          // construir lista de clientesForBook aplicando filtros localmente (aseguramos que clients esté poblado)
-          let clientsForBook = []
-          if (all) {
-            clientsForBook = [...clients]
-          } else {
-            clientsForBook = [...clients]
-            if (instituto) clientsForBook = clientsForBook.filter(c => (c.instituto || '').toString() === instituto)
-            if (tipoBeca) clientsForBook = clientsForBook.filter(c => (c.tipoBeca || '').toString().toUpperCase() === (tipoBeca || '').toString().toUpperCase())
-          }
-
-          if (!clientsForBook || clientsForBook.length === 0) {
-            console.warn('generate modal: no hay clientes para los filtros seleccionados', { instituto, tipoBeca, clientsLen: clients.length })
-            reportEl.textContent = 'Error generando PDF: No hay clientes seleccionados para esos filtros.'
-            return
-          }
-
-          const blob = await createBookPdfBlob({ instituto: instituto || null, tipoBeca: tipoBeca || null, clientsForBook })
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          const sanitize = s => (s || '').toString().trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-()]/g, '')
-          const instPart = sanitize(instituto || (clientsForBook[0] && clientsForBook[0].instituto) || 'Todos')
-          const tipoPart = sanitize(tipoBeca || (clientsForBook[0] && clientsForBook[0].tipoBeca) || 'Todos')
-          a.download = `Libro de becas (${instPart})(${tipoPart}).pdf`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(url)
-          reportEl.textContent = 'PDF generado y descargado.'
-        }
-      } catch (err) {
-        console.error('Error generando PDF', err)
-        reportEl.textContent = 'Error generando PDF: ' + (err.message || String(err))
-      }
-    })
+    btn.addEventListener('click', runGenerateBookHandler)
+  } else {
+    console.debug('btnGenerateBook no encontrado al inicializar el listener; se agrega listener delegado como fallback')
   }
+
+  // Fallback: listener delegado para capturar clicks aunque el binding directo no se haya aplicado
+  document.addEventListener('click', (ev) => {
+    try {
+      const target = ev.target || ev.srcElement
+      const btnEl = target && typeof target.closest === 'function' ? target.closest('#btnGenerateBook') : null
+      if (btnEl) runGenerateBookHandler(ev)
+    } catch (e) {
+      console.warn('Error en listener delegado de btnGenerateBook', e)
+    }
+  })
+  // Exponer para depuración manual desde consola
+  try { window.runGenerateBookHandler = runGenerateBookHandler } catch (e) {}
 })
 
-// Procesa un archivo File (xlsx/csv) y retorna array de objetos cliente
-async function parseExcelFile(file) {
-  const XLSX = await ensureSheetJS()
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const data = e.target.result
-        const workbook = XLSX.read(data, { type: 'binary' })
-        const firstSheetName = workbook.SheetNames[0]
-        const sheet = workbook.Sheets[firstSheetName]
-        const json = XLSX.utils.sheet_to_json(sheet, { defval: '' })
-        resolve(json)
-      } catch (err) {
-        reject(err)
-      }
-    }
-    reader.onerror = (err) => reject(err)
-    // Leer como binario para compatibilidad
-    reader.readAsBinaryString(file)
+// THEME TOGGLE: alternar entre tema oscuro y claro
+function applyTheme(theme) {
+  const root = document.documentElement
+  if (theme === 'light') {
+    root.setAttribute('data-theme', 'light')
+    localStorage.setItem('theme', 'light')
+    const toggle = document.getElementById('btnThemeToggle')
+    if (toggle) toggle.setAttribute('aria-pressed', 'true')
+    // show sun icon, hide moon
+    const sun = document.querySelector('.icon-sun')
+    const moon = document.querySelector('.icon-moon')
+    if (sun) sun.style.display = ''
+    if (moon) moon.style.display = 'none'
+  } else {
+    root.setAttribute('data-theme', 'dark')
+    localStorage.setItem('theme', 'dark')
+    const toggle = document.getElementById('btnThemeToggle')
+    if (toggle) toggle.setAttribute('aria-pressed', 'false')
+    const sun = document.querySelector('.icon-sun')
+    const moon = document.querySelector('.icon-moon')
+    if (sun) sun.style.display = 'none'
+    if (moon) moon.style.display = ''
+  }
+}
+
+function initThemeToggle() {
+  const saved = localStorage.getItem('theme') || 'dark'
+  applyTheme(saved)
+  const btn = document.getElementById('btnThemeToggle')
+  if (!btn) return
+  btn.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark'
+    const next = current === 'dark' ? 'light' : 'dark'
+    applyTheme(next)
   })
 }
 
-// Normaliza objeto del excel a la estructura de cliente esperada
-function mapRowToClient(row) {
-  // Intentar varios nombres de columna comunes
-  const get = (...names) => {
-    for (const n of names) {
-      if (row[n] !== undefined && row[n] !== null && String(row[n]).toString().trim() !== '') return String(row[n]).trim()
-    }
-    return ''
+// Entrada animada secuencial para las primeras N tarjetas (limitado a 3)
+// Entrada animada secuencial para las primeras N tarjetas (limitado a 6 por defecto)
+function animateInitialCards(limit = 6) {
+  const clientsList = document.getElementById('clientsList')
+  // animar también la search-card
+  const searchCard = document.querySelector('.search-card')
+  if (searchCard) {
+    searchCard.style.opacity = '0'
+    searchCard.style.transform = 'translateY(10px)'
+    searchCard.style.transition = 'opacity 560ms ease, transform 560ms cubic-bezier(.2,.8,.2,1)'
+    setTimeout(() => { searchCard.style.opacity = ''; searchCard.style.transform = '' }, 80)
   }
-
-  const nombreApellido = get('nombreApellido', 'nombre', 'Nombre', 'Nombre y Apellido', 'NOMBRE')
-  const dni = get('dni', 'DNI', 'documento')
-  const carrera = get('carrera', 'Carrera', 'carrera')
-  const instituto = get('instituto', 'Instituto', 'institucion')
-  const tipoBeca = (get('tipoBeca', 'Tipo', 'beca') || '').toString().toUpperCase()
-  const numeroOrden = Number.parseInt(get('numeroOrden', 'Nro', 'orden') || '0') || 0
-
-  if (!nombreApellido || !dni) return null
-
-  return {
-    id: Date.now().toString() + Math.random().toString(36).slice(2,8),
-    nombreApellido,
-    dni,
-    carrera,
-    instituto,
-    tipoBeca: ['A','B','C'].includes(tipoBeca) ? tipoBeca : '',
-    numeroOrden,
-    fechaRegistro: new Date().toISOString(),
-  }
+  if (!clientsList) return
+  const cards = Array.from(clientsList.children).slice(0, limit)
+  cards.forEach((card, idx) => {
+    card.style.opacity = '0'
+    card.style.transform = 'translateY(16px)'
+    card.style.transition = 'opacity 560ms ease, transform 560ms cubic-bezier(.2,.8,.2,1)'
+    setTimeout(() => {
+      card.style.opacity = ''
+      card.style.transform = ''
+    }, 200 * idx)
+  })
 }
 
-// Importar lote de rows (objetos parsed) y crear clientes evitando duplicados
-async function importClientsFromRows(rows) {
-  const report = { total: rows.length, created: 0, skipped: 0, errors: [] }
-  // Preparar mapas para asignar numeros de orden automáticamente por (instituto,tipo)
-  const maxOrderMap = {}
-  const keyFor = (inst, tipo) => `${(inst||'').toString().trim()}::${(tipo||'').toString().toUpperCase()}`
+// Helper global: generar HTML de una sola tarjeta de cliente
+function generateClientCardHtml(client) {
+  const usedCarillas = getUsedCarillasThisMonth(client.id)
+  const limit = BECA_LIMITS[client.tipoBeca]
+  const remaining = limit - usedCarillas
+  const percentage = (usedCarillas / limit) * 100
 
-  // Calcular estado actual (local) máximo por libro
-  for (const c of clients) {
-    const k = keyFor(c.instituto, c.tipoBeca)
-    const n = Number.parseInt(c.numeroOrden) || 0
-    if (!maxOrderMap[k] || n > maxOrderMap[k]) maxOrderMap[k] = n
-  }
+  let progressClass = ""
+  if (percentage >= 90) progressClass = "danger"
+  else if (percentage >= 70) progressClass = "warning"
 
-  // También consider numbers present in the file to avoid collisions within same import
-  const seenDnis = new Set(clients.map(c => String(c.dni)))
+  let instClass = ''
+  try {
+    const instName = (client.instituto || '').toString().toLowerCase()
+    if (instName.includes('salud')) instClass = 'instituto-salud'
+    else if (instName.includes('social')) instClass = 'instituto-sociales'
+    else if (instName.includes('ingenier')) instClass = 'instituto-ingenieria'
+  } catch (e) { instClass = '' }
 
-  for (const r of rows) {
-    const client = mapRowToClient(r)
-    if (!client) {
-      report.skipped++
-      continue
-    }
+  return `
+    <div class="client-card ${instClass}" data-client-id="${client.id}">
+                <div class="client-header">
+                    <div>
+                        <div class="client-name">${client.nombreApellido}</div>
+                        <span class="beca-badge beca-${client.tipoBeca.toLowerCase()}">Beca ${client.tipoBeca}</span>
+                    </div>
+                    <div class="client-actions">
+                        <button class="btn-icon" onclick="openEditClientModal('${client.id}')" title="Editar">
+                          <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        </button>
+                        <button class="btn-icon" onclick="openDeleteClientModal('${client.id}')" title="Eliminar">
+                          <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                
+        <div class="client-info">
+          <div class="info-item" style="align-items:center; gap:0.5rem;">
+            <span class="info-label">DNI:</span>
+            <span class="info-value">${client.dni}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Carrera:</span>
+            <span class="info-value">${client.carrera}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Instituto:</span>
+            <span class="info-value client-institute">${client.instituto}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">N° Orden:</span>
+            <span class="info-value client-order">${client.numeroOrden}</span>
+          </div>
+        </div>
 
-    // Skip if DNI already exists locally or in this import batch
-    if (seenDnis.has(String(client.dni))) {
-      report.skipped++
-      continue
-    }
+                <div class="progress-section">
+                    <div class="progress-header">
+                        <span style="color: var(--text-muted);">Carillas usadas</span>
+                        <span style="color: var(--text-primary); font-weight: 600;">${usedCarillas} / ${limit}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
+                    </div>
+                    <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
+                        Restantes: <strong style="color: var(--text-primary);">${remaining} carillas</strong>
+                    </div>
+                </div>
 
-    // If instituto or tipoBeca are missing, try to infer or mark as skipped
-    if (!client.instituto || !client.tipoBeca) {
-      // still allow import but mark error
-      report.errors.push({ client, error: 'Falta instituto o tipo de beca - importado sin número de orden' })
-    }
-
-    // Assign numeroOrden if missing or zero: take next sequential number for that (instituto,tipo)
-    const k = keyFor(client.instituto, client.tipoBeca)
-    if (!client.numeroOrden || Number.parseInt(client.numeroOrden) === 0) {
-      const base = maxOrderMap[k] || 0
-      const assigned = base + 1
-      client.numeroOrden = assigned
-      maxOrderMap[k] = assigned
-    }
-
-    // Validate local number conflict just in case
-    if (isOrderConflictLocal(client.instituto, client.tipoBeca, client.numeroOrden)) {
-      report.skipped++
-      report.errors.push({ client, error: 'Número de orden ya ocupado (local) en mismo instituto y tipo de beca' })
-      continue
-    }
-
-    // Remote checks if Firebase available
-    if (window.AppFirebase && window.AppFirebase.db) {
-      try {
-        const exists = await checkDniExistsRemote(client.dni)
-        if (exists) { report.skipped++; continue }
-        const orderExists = await checkOrderExistsRemote(client.instituto, client.tipoBeca, client.numeroOrden)
-        if (orderExists) { report.skipped++; report.errors.push({ client, error: 'Número de orden ya ocupado (remoto) en mismo instituto y tipo de beca' }); continue }
-      } catch (err) {
-        report.errors.push({ client, error: String(err) })
-        continue
-      }
-    }
-
-    // Passed checks: add to locals, persist
-    clients.push(client)
-    seenDnis.add(String(client.dni))
-    saveData()
-    try { await saveClientToFirestore(client) } catch (e) { /* logged elsewhere */ }
-    report.created++
-  }
-
-  renderClients()
-  return report
+                <div class="client-card-actions">
+          <button class="btn btn-primary btn-small" onclick="openAddImpresionModal('${client.id}')">
+            <svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M12 5v14M5 12h14"/></svg>
+            Agregar Impresión
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="openHistorialModal('${client.id}')">
+            <svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/></svg>
+            Historial
+          </button>
+                </div>
+            </div>
+        `
 }
 
-// Wire UI import modal buttons
+// Llamar initThemeToggle en DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('btnProcessImport')
-  if (btn) {
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault()
-      const input = document.getElementById('importFileInput')
-      const reportEl = document.getElementById('importReport')
-      reportEl.textContent = 'Procesando...'
-      if (!input || !input.files || input.files.length === 0) { reportEl.textContent = 'Selecciona un archivo.'; return }
-      const file = input.files[0]
-      try {
-        const rows = await parseExcelFile(file)
-        const report = await importClientsFromRows(rows)
-        reportEl.textContent = `Total filas: ${report.total} — Creados: ${report.created} — Omitidos: ${report.skipped} — Errores: ${report.errors.length}`
-      } catch (err) {
-        console.error('Import error', err)
-        reportEl.textContent = 'Error procesando archivo: ' + (err.message || String(err))
-      }
-    })
-  }
+  initThemeToggle()
 })
 
 function setupEventListeners() {
@@ -813,6 +1095,97 @@ function setupEventListeners() {
       if (fi) fi.focus()
     })
   }
+
+  // Paginación: selector de tamaño de página
+  const pageSizeSelect = document.getElementById('pageSizeSelect')
+  if (pageSizeSelect) {
+    // inicializar con valor guardado si existe
+    const saved = Number(localStorage.getItem('pageSize') || '6')
+    if ([6,9,12,15,18].includes(saved)) {
+      pageSize = saved
+      pageSizeSelect.value = String(saved)
+    }
+    pageSizeSelect.addEventListener('change', (e) => {
+      const v = Number(e.target.value) || 6
+      pageSize = Math.min(18, Math.max(6, v))
+      localStorage.setItem('pageSize', String(pageSize))
+      currentPage = 1
+      renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : '')
+    })
+  }
+
+  // Delegado para clicks en paginación
+  document.addEventListener('click', (e) => {
+    try {
+      const btn = e.target.closest && e.target.closest('[data-page-action]')
+      if (!btn) return
+      const action = btn.getAttribute('data-page-action')
+      const pageAttr = btn.getAttribute('data-page')
+      const totalPages = Number(btn.getAttribute('data-total-pages')) || null
+
+      if (action === 'first') { currentPage = 1 }
+      else if (action === 'last' && totalPages) { currentPage = totalPages }
+      else if (action === 'prev') { currentPage = Math.max(1, currentPage - 1) }
+      else if (action === 'next' && totalPages) { currentPage = Math.min(totalPages, currentPage + 1) }
+      else if (action === 'goto' && pageAttr) { currentPage = Math.max(1, Number(pageAttr)) }
+
+      renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : '')
+      // mantener el foco razonable
+      e.preventDefault()
+    } catch (err) {
+      // ignore
+    }
+  })
+
+  // Atajos de teclado para paginación: Ctrl + ArrowLeft / ArrowRight
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return
+    if (e.key === 'ArrowLeft') {
+      // ir a pagina anterior
+      const newPage = Math.max(1, currentPage - 1)
+      if (newPage !== currentPage) {
+        currentPage = newPage
+        animatePageChange()
+      }
+      e.preventDefault()
+    } else if (e.key === 'ArrowRight') {
+      // necesitamos calcular totalPages basados en los filtros actuales
+      // replicar brevemente la lógica de filtrado para determinar totalPages
+      let filteredLen = clients.length
+      const searchInput = document.getElementById('searchInput')
+      const term = searchInput ? (searchInput.value || '').toString().toLowerCase() : ''
+      if (term) filteredLen = clients.filter(c => (c.nombreApellido||'').toLowerCase().includes(term) || (c.dni||'').includes(term)).length
+      // aplicar filtros de currentFilters (tipoBeca/instituto/mes/ano/turno)
+      if (currentFilters && Object.keys(currentFilters).length > 0) {
+        let tmp = [...clients]
+        if (currentFilters.tipoBeca) tmp = tmp.filter(c => c.tipoBeca === currentFilters.tipoBeca)
+        if (currentFilters.instituto) tmp = tmp.filter(c => c.instituto === currentFilters.instituto)
+        if (currentFilters.mes || currentFilters.ano || currentFilters.turno) {
+          const clientsWithImpresiones = new Set()
+          impresiones.forEach(imp => {
+            const impDate = new Date(imp.fecha)
+            let matches = true
+            if (currentFilters.mes && impDate.getMonth() + 1 !== Number.parseInt(currentFilters.mes)) matches = false
+            if (currentFilters.ano && impDate.getFullYear() !== Number.parseInt(currentFilters.ano)) matches = false
+            if (currentFilters.turno && imp.turno !== currentFilters.turno) matches = false
+            if (matches) clientsWithImpresiones.add(imp.clienteId)
+          })
+          tmp = tmp.filter(c => clientsWithImpresiones.has(c.id))
+        }
+        // apply search term on tmp
+        if (term) tmp = tmp.filter(c => (c.nombreApellido||'').toLowerCase().includes(term) || (c.dni||'').includes(term))
+        filteredLen = tmp.length
+      }
+
+      const totalPages = Math.max(1, Math.ceil(filteredLen / pageSize))
+      const newPage = Math.min(totalPages, currentPage + 1)
+      if (newPage !== currentPage) {
+        currentPage = newPage
+        animatePageChange()
+      }
+      e.preventDefault()
+    }
+  })
 }
 
 function loadData() {
@@ -1873,79 +2246,26 @@ function renderClients(searchTerm = "") {
   // FLIP animation: capture first positions
   const firstRects = Array.from(clientsList.children).map(el => el.getBoundingClientRect())
 
-  const html = filteredClients.map((client) => {
-      const usedCarillas = getUsedCarillasThisMonth(client.id)
-      const limit = BECA_LIMITS[client.tipoBeca]
-      const remaining = limit - usedCarillas
-      const percentage = (usedCarillas / limit) * 100
+  // usamos generateClientCardHtml global
 
-      let progressClass = ""
-      if (percentage >= 90) progressClass = "danger"
-      else if (percentage >= 70) progressClass = "warning"
+  // Aplicar paginación (si showAllClients es true mostramos todos los filtrados)
+  const totalItems = filteredClients.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  // Ajustar currentPage si quedó fuera de rango
+  if (currentPage > totalPages) currentPage = totalPages
 
-      return `
-            <div class="client-card">
-                <div class="client-header">
-                    <div>
-                        <div class="client-name">${client.nombreApellido}</div>
-                        <span class="beca-badge beca-${client.tipoBeca.toLowerCase()}">Beca ${client.tipoBeca}</span>
-                    </div>
-                    <div class="client-actions">
-                        <button class="btn-icon" onclick="openEditClientModal('${client.id}')" title="Editar">
-                          <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                        </button>
-                        <button class="btn-icon" onclick="openDeleteClientModal('${client.id}')" title="Eliminar">
-                          <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                        </button>
-                    </div>
-                </div>
-                
-        <div class="client-info">
-          <div class="info-item" style="align-items:center; gap:0.5rem;">
-            <span class="info-label">DNI:</span>
-            <span class="info-value">${client.dni}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Carrera:</span>
-            <span class="info-value">${client.carrera}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Instituto:</span>
-            <span class="info-value client-institute">${client.instituto}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">N° Orden:</span>
-            <span class="info-value client-order">${client.numeroOrden}</span>
-          </div>
-        </div>
+  let toRender = []
+  if (showAllClients) {
+    toRender = filteredClients
+  } else {
+    const start = (currentPage - 1) * pageSize
+    const end = start + pageSize
+    toRender = filteredClients.slice(start, end)
+  }
 
-                <div class="progress-section">
-                    <div class="progress-header">
-                        <span style="color: var(--text-muted);">Carillas usadas</span>
-                        <span style="color: var(--text-primary); font-weight: 600;">${usedCarillas} / ${limit}</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
-                    </div>
-                    <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
-                        Restantes: <strong style="color: var(--text-primary);">${remaining} carillas</strong>
-                    </div>
-                </div>
+  const html = toRender.map((client) => generateClientCardHtml(client)).join("")
 
-                <div class="client-card-actions">
-          <button class="btn btn-primary btn-small" onclick="openAddImpresionModal('${client.id}')">
-            <svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M12 5v14M5 12h14"/></svg>
-            Agregar Impresión
-          </button>
-          <button class="btn btn-secondary btn-small" onclick="openHistorialModal('${client.id}')">
-            <svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/></svg>
-            Historial
-          </button>
-                </div>
-            </div>
-        `
-    }).join("")
-
+  // Si no estamos mostrando todo y hay más que los mostrados por página, añadimos un pequeño aviso (opcional)
   clientsList.innerHTML = html
 
   // FLIP: measure last positions and animate
@@ -1966,6 +2286,146 @@ function renderClients(searchTerm = "") {
         el.style.transform = ''
       })
     }
+  })
+
+  // Si añadimos el botón para mostrar todo, enlazamos su evento
+  const btnShowAll = document.getElementById('btnShowAllClients')
+  if (btnShowAll) {
+    btnShowAll.addEventListener('click', () => {
+      revealAllClients(filteredClients)
+    })
+  }
+
+  // Construir controles de paginación
+  const paginationEl = document.getElementById('pagination')
+  if (paginationEl) {
+    // Helper para generar boton
+    const makeBtn = (label, action, page = null, extraAttrs = '') => `<button class="btn btn-secondary" data-page-action="${action}" ${page !== null ? `data-page="${page}"` : ''} ${extraAttrs}>${label}</button>`
+
+    // Limitar cantidad de botones numéricos mostrados (centro en currentPage)
+    const maxButtons = 6
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2))
+    let endPage = startPage + maxButtons - 1
+    if (endPage > totalPages) { endPage = totalPages; startPage = Math.max(1, endPage - maxButtons + 1) }
+
+    const parts = []
+    parts.push(makeBtn('Primero', 'first', 1, `data-total-pages="${totalPages}"`))
+    parts.push(makeBtn('Anterior', 'prev', null, `data-total-pages="${totalPages}"`))
+
+    for (let p = startPage; p <= endPage; p++) {
+      if (p === currentPage) {
+        parts.push(`<button class="btn btn-primary" aria-current="page" data-page-action="goto" data-page="${p}" data-total-pages="${totalPages}">${p}</button>`)
+      } else {
+        parts.push(makeBtn(p, 'goto', p, `data-total-pages="${totalPages}"`))
+      }
+    }
+
+    parts.push(makeBtn('Siguiente', 'next', null, `data-total-pages="${totalPages}"`))
+    parts.push(makeBtn('Último', 'last', totalPages, `data-total-pages="${totalPages}"`))
+
+    paginationEl.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">${parts.join('')}</div>`
+  }
+
+  // Animación de entrada secuencial solo en la primera render (o si no fue ejecutada aún)
+  if (!_firstRenderDone) {
+    // esperar a que el DOM pinte
+    requestAnimationFrame(() => {
+      animateInitialCards()
+      _firstRenderDone = true
+    })
+  }
+
+  // Si acabamos de renderizar por paginación, aplicar clase de entrada para animación general
+  // (Esto también cubre render tras animatePageChange)
+  // Solo aplicar esta animación de entrada cuando venimos de una paginación explícita
+  // (evita duplicar la animación de entrada inicial). La bandera __justPaginated
+  // la establece animatePageChange() justo antes de llamar a renderClients().
+  if (__justPaginated) {
+    // limpiar la bandera inmediatamente para futuros renders normales
+    __justPaginated = false
+    requestAnimationFrame(() => {
+      const cards = Array.from(clientsList.querySelectorAll('[data-client-id]'))
+      cards.forEach((c, idx) => {
+        c.classList.remove('page-enter', 'page-enter-active')
+        c.classList.add('page-enter')
+        // forzar reflow
+        void c.offsetWidth
+        setTimeout(() => { c.classList.add('page-enter-active') }, 20 + idx * 25)
+        // limpiar clases al finalizar
+        setTimeout(() => { c.classList.remove('page-enter', 'page-enter-active') }, 480 + idx * 25)
+      })
+    })
+  }
+}
+
+// Ejecuta animación de salida y luego cambia la página (renderClients) sin hacer scroll
+function animatePageChange() {
+  const clientsList = document.getElementById('clientsList')
+  if (!clientsList) { renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : ''); return }
+  const cards = Array.from(clientsList.querySelectorAll('[data-client-id]'))
+  if (cards.length === 0) { renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : ''); return }
+
+  // aplicar clase de salida con pequeño stagger
+  cards.forEach((c, i) => {
+    setTimeout(() => {
+      c.classList.remove('page-enter', 'page-enter-active')
+      c.classList.add('page-exit')
+      // trigger
+      void c.offsetWidth
+      c.classList.add('page-exit-active')
+    }, i * 30)
+  })
+
+  // calcular duración máxima (stagger + transición) antes de renderizar la nueva página
+  const totalDuration = 30 * cards.length + 280
+  setTimeout(() => {
+    __justPaginated = true
+    renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : '')
+  }, totalDuration)
+}
+
+// Mostrar todas las tarjetas restantes con una animación suave
+function revealAllClients(filteredClients) {
+  showAllClients = true
+  const clientsList = document.getElementById('clientsList')
+  if (!clientsList) return
+
+  // Generar HTML de las tarjetas que faltan (las que no están actualmente renderizadas)
+  const existingIds = new Set(Array.from(clientsList.querySelectorAll('[data-client-id]')).map(el => el.getAttribute('data-client-id')))
+  const missing = filteredClients.filter(c => !existingIds.has(c.id))
+  if (missing.length === 0) {
+    // Simplemente re-renderizar
+    renderClients()
+    return
+  }
+
+  // Crear contenedor temporal para las nuevas tarjetas, ocultarlas inicialmente
+  const frag = document.createDocumentFragment()
+  missing.forEach((c) => {
+    const temp = document.createElement('div')
+  temp.innerHTML = generateClientCardHtml(c)
+    // temp may contain multiple nodes; append each
+    Array.from(temp.children).forEach(ch => {
+      ch.style.opacity = '0'
+      ch.style.transform = 'translateY(18px)'
+      ch.style.transition = 'opacity 420ms ease, transform 420ms cubic-bezier(.2,.8,.2,1)'
+      frag.appendChild(ch)
+    })
+  })
+
+  // Remove the 'Mostrar más' button area first
+  const moreTrigger = document.getElementById('clientsMoreTrigger')
+  if (moreTrigger) moreTrigger.remove()
+
+  clientsList.appendChild(frag)
+
+  // Stagger reveal
+  const newCards = Array.from(clientsList.querySelectorAll('[data-client-id]')).slice(-missing.length)
+  newCards.forEach((card, idx) => {
+    setTimeout(() => {
+      card.style.opacity = ''
+      card.style.transform = ''
+    }, idx * 70)
   })
 }
 
