@@ -276,6 +276,12 @@ body {
   align-items: center;
 }
 
+.clients-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 
 .clients-list.empty {
   display: flex;
@@ -783,6 +789,77 @@ body {
     display: flex;
     flex-direction: row;
     align-items: stretch;
+  /* Mejoras responsive para cabecera en móviles */
+  @media (max-width: 600px) {
+    .header {
+      padding: 1rem 0.5rem;
+    }
+
+    .header-grid {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .header-left {
+      width: 100%;
+    }
+
+    .header-left h1 {
+      font-size: 1.125rem;
+    }
+
+    .header-subtitle {
+      font-size: 0.8rem;
+    }
+
+    .header-right {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .turno-selector {
+      flex: 1 1 auto;
+      min-width: 120px;
+    }
+
+    .digital-clock {
+      min-width: 80px;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    .icon-btn {
+      padding: 0.4rem;
+      height: 36px;
+      min-width: 36px;
+    }
+
+    .icon-btn svg { width: 14px; height: 14px }
+
+    .btn {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    /* Asegurar que el contenedor principal no desborde horizontalmente */
+    body, .container {
+      overflow-x: hidden;
+    }
+  }
     max-width: 1100px; /* más ancho en desktop */
   }
 
@@ -929,6 +1006,153 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--bg-hover);
+}
+
+/* Reglas móviles específicas para la cabecera: turno + reloj en la misma fila, acciones en fila inferior, título centrado */
+@media (max-width: 600px) {
+  .header {
+    padding: 1rem 0;
+  }
+
+  .header-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .header-left {
+    width: 100%;
+    text-align: center;
+  }
+
+  .header-left h1 {
+    font-size: 1.25rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .header-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+  }
+
+  .header-right {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  /* fila superior: turno + reloj */
+  .header-top-row { display: flex; gap: 0.5rem; align-items: center; justify-content: center; width: 100%; }
+
+  .turno-selector { order: 0; }
+  .digital-clock { order: 1; }
+
+  /* acciones en fila separada */
+  .header-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; width: 100%; }
+
+  .turno-selector select { width: 120px; }
+
+  .digital-clock { min-width: 86px; padding: 0.35rem 0.55rem; }
+
+  body, .container { overflow-x: hidden; }
+}
+
+/* Floating search that appears when main search scrolls out */
+.floating-search {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%) scaleY(0.98);
+  background: rgba(17,24,39,0.95);
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 0.4rem 0.6rem;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 60%;
+  max-width: 720px;
+  transition: transform 220ms ease, opacity 220ms ease;
+  opacity: 0;
+  z-index: 2500;
+  pointer-events: none;
+}
+
+.floating-search[aria-hidden="false"] { opacity: 1; transform: translateX(-50%) scaleY(1); pointer-events: auto }
+
+.floating-search .floating-search-inner { display:flex; align-items:center; gap:0.6rem; width:100% }
+.floating-search input.search-input { background:transparent; border:none; color:var(--text-primary); width:100%; padding:0.35rem 0 }
+
+/* Back to top button */
+.back-to-top {
+  display: none; /* oculto por defecto en top */
+  position: fixed;
+  right: 1rem; /* mover a la esquina inferior derecha */
+  bottom: 1.25rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  color: var(--text-primary);
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(3,6,23,0.45);
+  border: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer;
+  z-index: 9999;
+}
+
+.back-to-top.show { display:flex; animation: pop-in 220ms ease; }
+
+/* Igualar altura visual del badge de clientes al botón de filtros */
+#clientCount {
+  display: inline-flex;
+  align-items: center;
+  height: 36px; /* similar a .btn-secondary en header */
+  padding: 0 0.6rem;
+  border-radius: 0.35rem;
+}
+
+@keyframes pop-in { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+
+/* Smooth transitions for client-cards (FLIP fallback) */
+.client-card { will-change: transform, opacity }
+
+/* Tooltip para .turno-attention (visual + accesible) */
+.turno-selector.turno-attention {
+  position: relative;
+  border-color: var(--yellow-primary) !important;
+}
+
+.turno-selector.turno-attention::after {
+  content: 'Atención: turno seleccionado posiblemente incorrecto. Verificar.';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(17,24,39,0.98);
+  color: var(--text-secondary);
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.4rem;
+  margin-top: 0.45rem;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+  border: 1px solid var(--yellow-primary);
+  z-index: 2000;
+  opacity: 1; /* visible por defecto */
+  pointer-events: auto;
+  transition: transform 0.12s;
+}
+
+
+.turno-selector.turno-attention:focus-within::after {
+  transform: translateX(-50%) translateY(0);
 }
 * {
   margin: 0;
