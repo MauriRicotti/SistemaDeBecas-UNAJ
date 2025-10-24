@@ -4,6 +4,11 @@
   box-sizing: border-box;
 }
 
+/* Evitar overflow horizontal global */
+html, body {
+  overflow-x: hidden;
+}
+
 :root {
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
@@ -418,6 +423,10 @@ body {
   white-space: nowrap;
 }
 
+/* Wrapper del botón 'Agregar Cliente' para controlar responsive sin inline styles */
+.search-add-btn-wrapper { display: inline-block }
+.search-add-btn-wrapper .btn { white-space: nowrap }
+
 .search-input {
   width: 100%;
   padding: 0.875rem 1rem;
@@ -512,7 +521,8 @@ body {
 
 .clients-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  /* reducir min width para que las tarjetas no fuerzen scroll horizontal en móviles */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 }
 
@@ -523,6 +533,9 @@ body {
   padding: 1.25rem;
   transition: transform 0.2s;
   position: relative; /* permitir pseudo-elementos (franja de color) */
+  max-width: 100%;
+  box-sizing: border-box;
+  word-wrap: break-word;
 }
 
 /* Animación de entrada: se usará por JS para las primeras tarjetas */
@@ -1096,17 +1109,192 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .form-row {
-    grid-template-columns: 1fr;
+  /* Asegurar que la franja lateral no provoque overflow en móviles */
+  .client-card.instituto-salud,
+  .client-card.instituto-sociales,
+  .client-card.instituto-ingenieria {
+    padding-left: 1rem; /* menos espacio para móviles */
   }
 
-  .stats-grid {
-    grid-template-columns: 1fr;
+  /* Forzar que el contenedor de acciones de cabecera pueda quebrar líneas y no fuerce ancho */
+  .clients-header-actions {
+    white-space: normal !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
-  .modal {
-    padding: 1rem;
+  /* Reordenar header de 'Clientes Registrados' en móviles: 4 filas */
+  .clients-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
   }
+
+  .clients-header > div:first-child {
+    /* el título */
+    width: 100%;
+  }
+
+  /* Forzar orden de los elementos dentro de clients-header-actions: filtros, selector, contador */
+  .clients-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+    width: 100%;
+  }
+
+  /* Dentro de clients-header-actions: forzar orden y ancho 100% para cada control */
+  /* Cada control ocupa el 100% y mantenemos orden lógico */
+  .clients-header-actions > #btnFilters,
+  .clients-header-actions > #pageSizeLabel,
+  .clients-header-actions > #clientCount {
+    width: 100%;
+    display: inline-flex;
+    justify-content: center; /* centrar controles visualmente */
+  }
+
+  /* Botón filtros ocupa todo el ancho y estilo consistente */
+  .clients-header-actions > #btnFilters {
+    padding: 0.8rem 1rem;
+  }
+
+  /* Forzar que los hijos directos del search-row (incluido el div con margin inline) ocupen 100% sin margen lateral */
+  .search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-row > * {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  .search-add-btn-wrapper { margin-left: 0; width: 100%; }
+  .search-add-btn-wrapper .btn { width: 100%; }
+
+  /* Hacer los botones de paginación menos anchos en móvil */
+  #pagination .btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 6px;
+    font-size: 0.88rem;
+  }
+
+  /* Mejor presentación de la paginación en móvil: evitar wrap y permitir scroll horizontal suave */
+  #pagination {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 4px;
+    justify-content: flex-start;
+  }
+
+  #pagination > div { display: inline-flex }
+  #pagination .btn { flex: 0 0 auto }
+
+  /* Apilar buscador arriba y botón debajo en pantallas pequeñas */
+  .search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-row .search-input-wrapper {
+    width: 100%;
+  }
+
+  .search-row > div[style], .search-row > .btn {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  /* Hacer el botón de agregar cliente más compacto y evitar overflow */
+  .search-row .btn {
+    padding: 0.6rem 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  /* Paginación: ocupar menos espacio y permitir wrap controlado */
+  #pagination {
+    justify-content: center;
+  }
+
+  #pagination .btn {
+    min-width: 36px;
+    padding: 0 8px;
+    font-size: 0.9rem;
+  }
+
+
+  /* Ocultar la pista de atajo en móviles y tablets; mostrar solo en escritorio grande */
+  #paginationHint { display: none !important; }
+}
+
+@media (min-width: 1025px) {
+  #paginationHint { display: block !important; }
+}
+
+@media (max-width: 480px) {
+  .client-card.instituto-salud::before,
+  .client-card.instituto-sociales::before,
+  .client-card.instituto-ingenieria::before {
+    width: 4px;
+  }
+
+  .client-card.instituto-salud,
+  .client-card.instituto-sociales,
+  .client-card.instituto-ingenieria {
+    padding-left: calc(0.75rem + 6px);
+  }
+
+  /* Reducir gaps para evitar overflow */
+  .clients-list { gap: 0.6rem }
+  .card { padding: 1rem }
+}
+
+/* Paginación compacta en desktop: limitar altura y usar ellipsis visual si needed */
+@media (min-width: 521px) {
+  #pagination { gap: 6px }
+}
+
+/* Estilos para botones de paginación con ellipsis */
+.pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 34px;
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+/* Inner container for pagination buttons (used by JS) */
+.pagination-inner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  /* No horizontal scroll: permitir wrap y centrar. Botones más pequeños para caber. */
+  .pagination-inner { flex-wrap: wrap; justify-content: center; padding: 6px 4px }
+  #pagination .btn { min-width: 30px; height: 32px; padding: 0 6px; font-size: 0.82rem }
+  .pagination-ellipsis { min-width: 30px; height: 32px; font-size: 0.9rem }
+}
+
+.form-row {
+  grid-template-columns: 1fr;
+}
+
+.stats-grid {
+  grid-template-columns: 1fr;
+}
+
+.modal {
+  padding: 1rem;
 }
 
 .turno-attention {

@@ -2302,28 +2302,70 @@ function renderClients(searchTerm = "") {
     // Helper para generar boton
     const makeBtn = (label, action, page = null, extraAttrs = '') => `<button class="btn btn-secondary" data-page-action="${action}" ${page !== null ? `data-page="${page}"` : ''} ${extraAttrs}>${label}</button>`
 
-    // Limitar cantidad de botones numéricos mostrados (centro en currentPage)
-    const maxButtons = 6
-    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2))
-    let endPage = startPage + maxButtons - 1
-    if (endPage > totalPages) { endPage = totalPages; startPage = Math.max(1, endPage - maxButtons + 1) }
-
+  // Limitar cantidad de botones numéricos mostrados y usar puntos suspensivos si es necesario
+  // Ajustar dinámicamente según el ancho de la ventana para evitar scroll horizontal en móviles
+  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+  let maxButtons
+  if (vw < 360) maxButtons = 3
+  else if (vw < 420) maxButtons = 4
+  else if (vw < 520) maxButtons = 5
+  else if (vw < 768) maxButtons = 7
+  else maxButtons = 9
     const parts = []
     parts.push(makeBtn('Primero', 'first', 1, `data-total-pages="${totalPages}"`))
     parts.push(makeBtn('Anterior', 'prev', null, `data-total-pages="${totalPages}"`))
 
-    for (let p = startPage; p <= endPage; p++) {
-      if (p === currentPage) {
-        parts.push(`<button class="btn btn-primary" aria-current="page" data-page-action="goto" data-page="${p}" data-total-pages="${totalPages}">${p}</button>`)
-      } else {
-        parts.push(makeBtn(p, 'goto', p, `data-total-pages="${totalPages}"`))
+    if (totalPages <= maxButtons) {
+      // mostrar todos
+      for (let p = 1; p <= totalPages; p++) {
+        if (p === currentPage) parts.push(`<button class="btn btn-primary" aria-current="page" data-page-action="goto" data-page="${p}" data-total-pages="${totalPages}">${p}</button>`)
+        else parts.push(makeBtn(p, 'goto', p, `data-total-pages="${totalPages}"`))
+      }
+    } else {
+      // mostrar una ventana alrededor de currentPage, con ellipsis cuando corresponde
+      const leftSiblingCount = Math.floor((maxButtons - 1) / 2)
+      const rightSiblingCount = Math.ceil((maxButtons - 1) / 2)
+
+      let left = Math.max(1, currentPage - leftSiblingCount)
+      let right = Math.min(totalPages, currentPage + rightSiblingCount)
+
+      // ajustar si nos acercamos a los extremos
+      if (currentPage - left < leftSiblingCount) {
+        right = Math.min(totalPages, right + (leftSiblingCount - (currentPage - left)))
+      }
+      if (right - currentPage < rightSiblingCount) {
+        left = Math.max(1, left - (rightSiblingCount - (right - currentPage)))
+      }
+
+      // Asegurar que la ventana tenga tamaño maxButtons
+      const windowSize = right - left + 1
+      if (windowSize < maxButtons) {
+        if (left === 1) right = Math.min(totalPages, left + maxButtons - 1)
+        else if (right === totalPages) left = Math.max(1, right - maxButtons + 1)
+      }
+
+      // Si hay espacio antes de 'left', mostrar 1 y ellipsis
+      if (left > 1) {
+        parts.push(makeBtn(1, 'goto', 1, `data-total-pages="${totalPages}"`))
+        if (left > 2) parts.push(`<span class="pagination-ellipsis">…</span>`)
+      }
+
+      for (let p = left; p <= right; p++) {
+        if (p === currentPage) parts.push(`<button class="btn btn-primary" aria-current="page" data-page-action="goto" data-page="${p}" data-total-pages="${totalPages}">${p}</button>`)
+        else parts.push(makeBtn(p, 'goto', p, `data-total-pages="${totalPages}"`))
+      }
+
+      // Si hay espacio después de 'right', mostrar ellipsis y última página
+      if (right < totalPages) {
+        if (right < totalPages - 1) parts.push(`<span class="pagination-ellipsis">…</span>`)
+        parts.push(makeBtn(totalPages, 'goto', totalPages, `data-total-pages="${totalPages}"`))
       }
     }
 
     parts.push(makeBtn('Siguiente', 'next', null, `data-total-pages="${totalPages}"`))
     parts.push(makeBtn('Último', 'last', totalPages, `data-total-pages="${totalPages}"`))
 
-    paginationEl.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">${parts.join('')}</div>`
+  paginationEl.innerHTML = `<div class="pagination-inner">${parts.join('')}</div>`
   }
 
   // Animación de entrada secuencial solo en la primera render (o si no fue ejecutada aún)
