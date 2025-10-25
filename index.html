@@ -83,7 +83,6 @@
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H16a3.5 3.5 0 0 1 0 7H7"/></svg>
                         </button>
                         <button id="btnSettings" class="icon-btn" title="Configuración" aria-label="Configuración">
-                            <!-- Icono de configuración más limpio y moderno (más legible) -->
                             <svg class="svg-icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path d="M11.3 1.046a1 1 0 00-2.6 0l-.285 1.06a6.003 6.003 0 00-1.594.98L5.04 2.79a1 1 0 00-1.28.464l-.714 1.464a1 1 0 00.465 1.28l1.119.56c-.03.352-.03.712 0 1.064l-1.12.56a1 1 0 00-.465 1.28l.714 1.464a1 1 0 001.28.464l1.78-.5c.444.375.933.68 1.47.9l.285 1.06a1 1 0 002.6 0l.285-1.06c.536-.22 1.026-.525 1.47-.9l1.78.5a1 1 0 001.28-.464l.714-1.464a1 1 0 00-.465-1.28l-1.12-.56c.03-.352.03-.712 0-1.064l1.12-.56a1 1 0 00.465-1.28l-.714-1.464a1 1 0 00-1.28-.464l-1.78.5a6.003 6.003 0 00-1.47-.9L11.3 1.046zM10 13a3 3 0 110-6 3 3 0 010 6z"/>
                             </svg>
@@ -444,12 +443,10 @@
 
                     <div id="toast" class="toast"></div>
 
-                    <!-- Modal: cambiar contraseña (mejorado) -->
                     <div id="changePasswordModal" class="modal">
                         <div class="modal-content modal-small">
                             <div class="modal-header"><h3>Cambiar contraseña</h3><button class="close-btn" onclick="closeModal('changePasswordModal')">&times;</button></div>
                             <form id="changePasswordForm" autocomplete="off" novalidate>
-                                <!-- campos ocultos para disuadir al gestor de contraseñas de mostrar el prompt -->
                                 <input type="text" name="__fake_user" autocomplete="username" style="display:none!important" />
                                 <input type="password" name="__fake_pass" autocomplete="current-password" style="display:none!important" />
                                 <div style="padding:0.75rem; display:flex; flex-direction:column; gap:0.6rem;">

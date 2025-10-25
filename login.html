@@ -7,11 +7,9 @@
     <link rel="stylesheet" href="Style.css">
     <link rel="icon" href="Imagenes - Web Becas/unaj-removebg-preview becas2png.png" type="image/png">
     <style>
-      /* Layout base */
       html, body { height: 100%; }
       body { margin: 0; font-family: Inter, Segoe UI, Roboto, system-ui, Arial; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
 
-      /* Animated background blobs (celeste + rojo) */
       body::before,
       body::after {
         content: '';
@@ -24,14 +22,12 @@
         opacity: 0.95;
       }
 
-      /* Celeste blob */
       body::before {
         background: radial-gradient(600px 400px at 20% 30%, rgba(41, 209, 255, 0.28), rgba(41,209,255,0.14) 25%, rgba(41,209,255,0.04) 45%, transparent 60%),
                     radial-gradient(400px 300px at 80% 70%, rgba(59, 150, 255, 0.06), transparent 30%);
         animation: float-celeste 12s ease-in-out infinite;
       }
 
-      /* Rojo / magenta blob */
       body::after {
         background: radial-gradient(700px 500px at 85% 25%, rgba(255, 92, 130, 0.26), rgba(255,92,130,0.10) 25%, transparent 55%),
                     radial-gradient(300px 220px at 10% 80%, rgba(255, 140, 170, 0.04), transparent 40%);
@@ -49,17 +45,13 @@
         100% { transform: translate(10%, 8%) scale(1); }
       }
 
-    /* Centering container: asegurar referencia y min-height; la .login-container
-      se posiciona con absolute para quedar exactamente en el centro */
     body { position: relative; min-height: 100vh; display:flex; align-items:center; justify-content:center; background: #071022; }
 
-      /* Login card (glass) */
       .login-container {
-        position: fixed; /* fijar respecto al viewport para centrar en escritorio */
+        position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        z-index: 50;
         width: 380px;
         max-width: calc(100% - 32px);
         background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
@@ -86,23 +78,19 @@
       }
       .login-row input::placeholder { color: rgba(234,246,255,0.45) }
 
-      /* Actions: the button occupies whole width */
       .login-actions { display:block; margin-top: 6px }
       .login-actions .btn { width:100%; padding: 0.72rem 0.8rem; border-radius:8px; font-weight:600; box-shadow: 0 6px 18px rgba(8,20,48,0.45); }
 
       .muted { color: rgba(230,239,255,0.6); font-size:0.9rem }
       .btn { cursor:pointer }
 
-      /* Hide the initial setup notice text visually (script may update it later) */
       #setupNotice { display: none !important; }
 
-      /* Small screens adjustments */
       @media (max-width: 420px) {
         .login-container { width: calc(100% - 28px); padding: 1rem; border-radius: 10px }
         .login-header { font-size: 1rem }
       }
 
-      /* Más ajustes específicos para móviles: inputs y botón más grandes */
       @media (max-width: 520px) {
         body::before, body::after { filter: blur(60px) saturate(105%); }
         .login-container { width: calc(100% - 28px); padding: 1rem; border-radius: 10px; box-shadow: 0 8px 28px rgba(2,6,23,0.6); }
@@ -112,12 +100,10 @@
         .login-sub { display:none }
       }
 
-      /* Interacciones para el botón */
       .login-actions .btn.btn-primary { transition: transform 140ms ease, box-shadow 140ms ease }
       .login-actions .btn.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(59,130,246,0.14) }
     </style>
     <script>
-      // Si ya está autenticado, redirigir a index
       try {
         const token = localStorage.getItem('authToken')
         if (token) {
@@ -133,7 +119,6 @@
           <div id="setupNotice" class="muted">Si es la primera vez, crea las credenciales de administrador.</div>
 
         <form id="loginForm" autocomplete="off" novalidate>
-          <!-- Campos ocultos para evitar que el gestor de contraseñas detecte y muestre el diálogo -->
           <input type="text" name="fake_user" autocomplete="username" style="display:none!important" />
           <input type="password" name="fake_pass" autocomplete="current-password" style="display:none!important" />
           <div class="login-row">
@@ -158,7 +143,6 @@
         el.className = kind ? `toast ${kind}` : ''
       }
 
-      // URL RTDB (se usa para guardar la contraseña) — coincide con Main.js
       const RTDB_URL = 'https://sistema-de-becas-unaj-default-rtdb.firebaseio.com'
 
       async function getRemoteAuth() {
@@ -182,7 +166,6 @@
         const pass = (document.getElementById('loginPass').value || '')
         if (!pass) { showMsg('Ingrese la contraseña', 'error'); return }
 
-        // Intentar validar contra Firebase RTDB (campo 'password')
         let remote = await getRemoteAuth()
         if (remote && remote.password) {
           if (remote.password === pass) {
@@ -195,7 +178,6 @@
           return
         }
 
-        // Si no hay contraseña guardada en remoto: permitir creación sólo con la contraseña por defecto 'becas123'
         if ((pass || '') === 'becas123') {
           const ok = await setRemoteAuth({ password: pass, updatedAt: new Date().toISOString() })
           if (ok) {
@@ -204,7 +186,6 @@
             setTimeout(() => location.href = 'index.html', 400)
             return
           }
-          // si no pudo guardar en RTDB, almacenar localmente como fallback (texto claro)
           localStorage.setItem('becaPass', pass)
           localStorage.setItem('authToken', crypto.getRandomValues(new Uint8Array(16)).reduce((s,b)=>s+b.toString(16).padStart(2,'0'),'') )
           showMsg('Contraseña inicial guardada localmente (Firebase no accesible). Redirigiendo...', 'warning')
@@ -212,13 +193,11 @@
           return
         }
 
-        // Si no hay remoto y la contraseña no es la por defecto, rechazar y pedir usar la contraseña por defecto
         showMsg("No hay contraseña establecida en el sistema. Utilice la contraseña por defecto 'becas123' para inicializar.", 'error')
       }
 
       document.getElementById('loginForm').addEventListener('submit', handleSubmit)
 
-      // Ajustar texto de aviso
       (async function() {
         const remote = await getRemoteAuth()
         if (remote && remote.password) {
