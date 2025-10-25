@@ -6,6 +6,17 @@
         <title>Sistema de de Becas - UNAJ</title>
         <script>
             try {
+                const token = localStorage.getItem('authToken')
+                const current = (location.pathname || '').split('/').pop() || ''
+                if (!token && current.toLowerCase() !== 'login.html') {
+                    location.href = 'login.html'
+                }
+                if (token && current.toLowerCase() === 'login.html') {
+                    location.href = 'index.html'
+                }
+            } catch (e) {}
+
+            try {
                 const t = localStorage.getItem('theme') || 'dark'
                 if (t === 'light') document.documentElement.setAttribute('data-theme', 'light')
                 else document.documentElement.setAttribute('data-theme', 'dark')
@@ -70,6 +81,15 @@
                         </button>
                         <button id="btnPrice" class="icon-btn" title="Precio por carilla" aria-label="Precio por carilla">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H16a3.5 3.5 0 0 1 0 7H7"/></svg>
+                        </button>
+                        <button id="btnSettings" class="icon-btn" title="Configuración" aria-label="Configuración">
+                            <!-- Icono de configuración más limpio y moderno (más legible) -->
+                            <svg class="svg-icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M11.3 1.046a1 1 0 00-2.6 0l-.285 1.06a6.003 6.003 0 00-1.594.98L5.04 2.79a1 1 0 00-1.28.464l-.714 1.464a1 1 0 00.465 1.28l1.119.56c-.03.352-.03.712 0 1.064l-1.12.56a1 1 0 00-.465 1.28l.714 1.464a1 1 0 001.28.464l1.78-.5c.444.375.933.68 1.47.9l.285 1.06a1 1 0 002.6 0l.285-1.06c.536-.22 1.026-.525 1.47-.9l1.78.5a1 1 0 001.28-.464l.714-1.464a1 1 0 00-.465-1.28l-1.12-.56c.03-.352.03-.712 0-1.064l1.12-.56a1 1 0 00.465-1.28l-.714-1.464a1 1 0 00-1.28-.464l-1.78.5a6.003 6.003 0 00-1.47-.9L11.3 1.046zM10 13a3 3 0 110-6 3 3 0 010 6z"/>
+                            </svg>
+                        </button>
+                        <button id="btnLogout" class="icon-btn" title="Cerrar sesión" aria-label="Cerrar sesión" style="margin-left:4px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                         </button>
                     </div>
                 </div>
@@ -335,16 +355,11 @@
                                 </div>
                             </div>
 
-                        
-
                             <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
                                 <button class="btn btn-secondary" onclick="closeModal('downloadModal')">Cancelar</button>
                                 <button class="btn btn-primary" id="btnDownloadClients">Generar PDF</button>
                             </div>
                             <div id="downloadReport" style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.9rem;"></div>
-                        </div>
-                    </div>
-                </div>
 
     <div id="toast" class="toast"></div>
 
@@ -428,6 +443,46 @@
                     </div>
 
                     <div id="toast" class="toast"></div>
+
+                    <!-- Modal: cambiar contraseña (mejorado) -->
+                    <div id="changePasswordModal" class="modal">
+                        <div class="modal-content modal-small">
+                            <div class="modal-header"><h3>Cambiar contraseña</h3><button class="close-btn" onclick="closeModal('changePasswordModal')">&times;</button></div>
+                            <form id="changePasswordForm" autocomplete="off" novalidate>
+                                <!-- campos ocultos para disuadir al gestor de contraseñas de mostrar el prompt -->
+                                <input type="text" name="__fake_user" autocomplete="username" style="display:none!important" />
+                                <input type="password" name="__fake_pass" autocomplete="current-password" style="display:none!important" />
+                                <div style="padding:0.75rem; display:flex; flex-direction:column; gap:0.6rem;">
+                                    <div class="form-group">
+                                        <label for="currentPassword" style="display:block; font-weight:600; margin-bottom:0.25rem;">Contraseña actual</label>
+                                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                                            <input id="currentPassword" type="password" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ingrese su contraseña actual" style="flex:1; padding:0.55rem; border-radius:6px;" />
+                                            <button id="btnVerifyCurrent" type="button" class="btn btn-secondary" style="white-space:nowrap;">Verificar</button>
+                                        </div>
+                                        <div id="currentVerifyMsg" style="margin-top:0.35rem; font-size:0.88rem; color:var(--text-secondary);"></div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="newPassword" style="display:block; font-weight:600; margin-bottom:0.25rem;">Nueva contraseña</label>
+                                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                                            <input id="newPassword" type="password" disabled autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Mínimo 4 caracteres" style="flex:1; padding:0.55rem; border-radius:6px;" />
+                                            <button id="toggleNewPwd" type="button" class="btn btn-secondary" title="Mostrar / ocultar">👁</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="confirmNewPassword" style="display:block; font-weight:600; margin-bottom:0.25rem;">Confirmar nueva contraseña</label>
+                                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                                            <input id="confirmNewPassword" type="password" disabled autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Repita la nueva contraseña" style="flex:1; padding:0.55rem; border-radius:6px;" />
+                                            <button id="toggleConfirmPwd" type="button" class="btn btn-secondary" title="Mostrar / ocultar">👁</button>
+                                        </div>
+                                        <div id="newPwdHelp" style="margin-top:0.35rem; font-size:0.88rem; color:var(--text-secondary);">Una vez verificada la contraseña actual podrá ingresar la nueva contraseña.</div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">Cancelar</button><button type="submit" id="changePasswordSubmit" class="btn btn-primary" disabled>Guardar</button></div>
+                            </form>
+                        </div>
+                    </div>
 
                     <div id="priceModal" class="modal">
                         <div class="modal-content modal-small">

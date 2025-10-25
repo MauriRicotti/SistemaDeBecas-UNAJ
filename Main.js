@@ -44,7 +44,244 @@ const BECA_LIMITS = {
   C: 460,
 }
 
+// --- Autenticación simple cliente ---
+function isAuthenticated() {
+  try { return !!localStorage.getItem('authToken') } catch (e) { return false }
+}
+
+function logout() {
+  try {
+    // Animación enriquecida al cerrar sesión: overlay con logo, mensaje de agradecimiento y transición
+    try {
+      const overlay = document.createElement('div')
+      overlay.id = 'logoutOverlay'
+      overlay.style.position = 'fixed'
+      overlay.style.inset = '0'
+      overlay.style.display = 'flex'
+      overlay.style.alignItems = 'center'
+      overlay.style.justifyContent = 'center'
+      overlay.style.background = 'rgba(2,6,23,0.88)'
+      overlay.style.backdropFilter = 'blur(6px)'
+      overlay.style.zIndex = '99999'
+      overlay.style.opacity = '0'
+      overlay.style.transition = 'opacity 420ms ease'
+
+      // Contenido central
+      const card = document.createElement('div')
+      card.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02))'
+      card.style.padding = '1.1rem 1.2rem'
+      card.style.borderRadius = '12px'
+  // Quitar la sombra de la tarjeta para un look más plano
+  card.style.boxShadow = 'none'
+      card.style.display = 'flex'
+      card.style.flexDirection = 'column'
+      card.style.alignItems = 'center'
+      card.style.gap = '0.6rem'
+      card.style.transform = 'translateY(8px) scale(0.98)'
+      card.style.opacity = '0'
+      card.style.transition = 'transform 420ms cubic-bezier(.2,.8,.2,1), opacity 320ms ease'
+
+      // Logo (UNAJ)
+      const logo = document.createElement('img')
+      logo.src = 'Imagenes - Web Becas/unaj-removebg-preview becas2png.png'
+      logo.alt = 'UNAJ'
+  // Hacer el logo un poco más grande y sin sombra
+  logo.style.width = '110px'
+  logo.style.height = 'auto'
+  logo.style.borderRadius = '8px'
+  logo.style.boxShadow = 'none'
+  // Mantener tamaño estático (sin pulso/rebote)
+  logo.style.transform = 'scale(1)'
+  logo.style.transition = 'transform 220ms ease'
+
+      const title = document.createElement('div')
+      title.textContent = 'Gracias por usar Sistema de Becas'
+      title.style.color = '#eaf6ff'
+      title.style.fontWeight = '700'
+      title.style.fontSize = '1.05rem'
+
+      const subtitle = document.createElement('div')
+      subtitle.textContent = 'Universidad Nacional Arturo Jauretche — Redirigiendo al login…'
+      subtitle.style.color = 'rgba(234,246,255,0.85)'
+      subtitle.style.fontSize = '0.95rem'
+
+      card.appendChild(logo)
+      card.appendChild(title)
+      card.appendChild(subtitle)
+      overlay.appendChild(card)
+      document.body.appendChild(overlay)
+
+      // Forzar frame para animar overlay y contenido
+      requestAnimationFrame(() => {
+  overlay.style.opacity = '1'
+  card.style.opacity = '1'
+  // Mostrar la tarjeta ligeramente más grande para mayor presencia
+  card.style.transform = 'translateY(0) scale(1.02)'
+  // Sin pulso: logo estático para evitar efecto "rebote"
+  logo.style.transform = 'scale(1)'
+      })
+
+      // Después de mostrar el agradecimiento, limpiar y redirigir (tiempo ampliado para ver la animación)
+      // Mostrar la pantalla un poco más antes de redirigir
+      setTimeout(() => {
+        try { localStorage.removeItem('authToken'); localStorage.removeItem('authUser') } catch (e) {}
+        try { location.href = 'login.html' } catch (e) { window.location.assign('login.html') }
+  }, 2200)
+      return
+    } catch (err) {
+      // si algo falla con la animación, caer a la redirección clásica
+      try { localStorage.removeItem('authToken'); localStorage.removeItem('authUser') } catch (e) {}
+      try { location.href = 'login.html' } catch (e) { }
+    }
+  } catch (e) {}
+}
+
+// Fin autenticación
+
+// --- Utilitarios para gestión de contraseña remota (RTDB via REST) ---
+const RTDB_URL = 'https://sistema-de-becas-unaj-default-rtdb.firebaseio.com'
+
+async function sha256Hex(str) {
+  const enc = new TextEncoder()
+  const data = enc.encode(str)
+  const hash = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('')
+}
+
+async function getRemoteAuth() {
+  try {
+    const r = await fetch(`${RTDB_URL}/auth.json`)
+    if (!r.ok) return null
+    return await r.json()
+  } catch (e) { return null }
+}
+
+async function setRemoteAuth(obj) {
+  try {
+    const r = await fetch(`${RTDB_URL}/auth.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) })
+    return r.ok
+  } catch (e) { return false }
+}
+
+// Abre modal de cambio de contraseña
+function openChangePasswordModal() {
+  try {
+    window._pwdVerified = false
+    const cur = document.getElementById('currentPassword')
+    const neu = document.getElementById('newPassword')
+    const conf = document.getElementById('confirmNewPassword')
+    const submit = document.getElementById('changePasswordSubmit')
+    const msg = document.getElementById('currentVerifyMsg')
+    if (cur) cur.value = ''
+    if (neu) { neu.value = ''; neu.disabled = true }
+    if (conf) { conf.value = ''; conf.disabled = true }
+    if (submit) submit.disabled = true
+    if (msg) msg.textContent = ''
+  } catch (e) {}
+  openModal('changePasswordModal')
+}
+
+async function handleChangePassword(e) {
+  try {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault()
+    // Asegurarnos que la contraseña actual fue verificada antes de permitir el cambio
+    try {
+      if (!window._pwdVerified) {
+        const ok = await verifyCurrentPassword()
+        if (!ok) return
+      }
+    } catch (err) {
+      console.warn('Error verificando contraseña antes de guardar', err)
+      return
+    }
+
+    const neu = (document.getElementById('newPassword').value || '')
+    const conf = (document.getElementById('confirmNewPassword').value || '')
+    if (!neu || !conf) { showToast('Complete la nueva contraseña y su confirmación', 'error'); return }
+    if (neu !== conf) { showToast('La nueva contraseña y confirmación no coinciden', 'error'); return }
+    if (neu.length < 4) { showToast('La contraseña debe tener al menos 4 caracteres', 'error'); return }
+
+    // Guardar nueva contraseña en texto claro en Firebase (si es posible)
+    const okRemote = await setRemoteAuth({ password: neu, updatedAt: new Date().toISOString() })
+    if (!okRemote) {
+      // fallback: guardar local (texto claro)
+      localStorage.setItem('becaPass', neu)
+      showToast('No se pudo guardar en Firebase. Contraseña guardada localmente.', 'warning')
+    } else {
+      showToast('Contraseña actualizada y guardada en Firebase', 'success')
+    }
+
+    // Limpiar estado y cerrar modal
+    window._pwdVerified = false
+    try { document.getElementById('newPassword').value = ''; document.getElementById('confirmNewPassword').value = ''; document.getElementById('currentPassword').value = ''; } catch (e) {}
+    // Deshabilitar campos otra vez
+    try { document.getElementById('newPassword').disabled = true; document.getElementById('confirmNewPassword').disabled = true; document.getElementById('changePasswordSubmit').disabled = true; document.getElementById('currentVerifyMsg').textContent = '' } catch (e) {}
+    closeModal('changePasswordModal')
+  } catch (err) {
+    console.error('handleChangePassword error', err)
+    showToast('Error cambiando la contraseña', 'error')
+  }
+}
+
+// Verifica la contraseña actual sin realizar el cambio. Habilita los campos para ingresar la nueva contraseña si es correcta.
+async function verifyCurrentPassword() {
+  try {
+    const current = (document.getElementById('currentPassword').value || '')
+    const msgEl = document.getElementById('currentVerifyMsg')
+    if (!current) {
+      if (msgEl) msgEl.textContent = 'Ingrese la contraseña actual para continuar.'
+      showToast('Ingrese la contraseña actual', 'error')
+      return false
+    }
+
+    let remote = await getRemoteAuth()
+    if (remote && remote.password) {
+      if (remote.password !== current) {
+        if (msgEl) { msgEl.textContent = 'Contraseña actual incorrecta.' }
+        showToast('Contraseña actual incorrecta', 'error')
+        return false
+      }
+    } else {
+      const localPass = localStorage.getItem('becaPass')
+      if (localPass && localPass !== current) {
+        if (msgEl) { msgEl.textContent = 'Contraseña actual incorrecta (local).' }
+        showToast('Contraseña actual incorrecta (local)', 'error')
+        return false
+      }
+      if (!localPass && current !== 'becas123') {
+        if (msgEl) { msgEl.textContent = 'No hay contraseña remota: use la contraseña por defecto "becas123".' }
+        showToast('No hay contraseña remota: ingrese la contraseña por defecto "becas123" como actual', 'error')
+        return false
+      }
+    }
+
+    // Si llegamos aquí, la contraseña actual es válida
+    window._pwdVerified = true
+    if (msgEl) { msgEl.textContent = 'Contraseña verificada. Ingrese la nueva contraseña.' }
+    // Habilitar campos de nueva contraseña y botón de guardar
+    try { document.getElementById('newPassword').disabled = false; document.getElementById('confirmNewPassword').disabled = false; document.getElementById('changePasswordSubmit').disabled = false } catch (e) {}
+    showToast('Contraseña verificada', 'success')
+    return true
+  } catch (err) {
+    console.error('verifyCurrentPassword error', err)
+    showToast('Error verificando la contraseña', 'error')
+    return false
+  }
+}
+
+// Exponer la función globalmente para el formulario
+try { window.openChangePasswordModal = openChangePasswordModal } catch (e) {}
+
 const MAX_CARILLAS_PER_IMPRESION = 10000
+
+function getCurrentSearchTerm() {
+  try {
+    const main = document.getElementById('searchInput')
+    const floating = document.getElementById('floatingSearchInput')
+    const term = (main && main.value && main.value.toString()) ? main.value.toString() : ((floating && floating.value && floating.value.toString()) ? floating.value.toString() : '')
+    return (term || '').toString()
+  } catch (e) { return '' }
+}
 
 function getPricePerCarilla() {
   try {
@@ -974,6 +1211,41 @@ function setupEventListeners() {
   if (btnPrice) {
     btnPrice.addEventListener('click', () => openPriceModal())
     try { btnPrice.title = `Precio por carilla: $${getPricePerCarilla()}` } catch (e) {}
+  }
+
+  // Logout (cerrar sesión)
+  const btnLogout = document.getElementById('btnLogout')
+  if (btnLogout) {
+    btnLogout.addEventListener('click', (e) => {
+      e.preventDefault && e.preventDefault()
+      logout()
+    })
+  }
+  // Settings (cambiar contraseña)
+  const btnSettings = document.getElementById('btnSettings')
+  if (btnSettings) {
+    btnSettings.addEventListener('click', (e) => {
+      e.preventDefault && e.preventDefault()
+      openChangePasswordModal()
+    })
+  }
+
+  const changeForm = document.getElementById('changePasswordForm')
+  if (changeForm) {
+    changeForm.addEventListener('submit', handleChangePassword)
+    // Botón de verificación de contraseña actual
+    const btnVerify = document.getElementById('btnVerifyCurrent')
+    if (btnVerify) btnVerify.addEventListener('click', async (ev) => { ev.preventDefault && ev.preventDefault(); await verifyCurrentPassword() })
+
+    // Toggles para mostrar/ocultar nuevas contraseñas
+    const toggleNew = document.getElementById('toggleNewPwd')
+    const toggleConf = document.getElementById('toggleConfirmPwd')
+    if (toggleNew) toggleNew.addEventListener('click', () => {
+      try { const inp = document.getElementById('newPassword'); if (!inp) return; inp.type = inp.type === 'password' ? 'text' : 'password' } catch (e) {}
+    })
+    if (toggleConf) toggleConf.addEventListener('click', () => {
+      try { const inp = document.getElementById('confirmNewPassword'); if (!inp) return; inp.type = inp.type === 'password' ? 'text' : 'password' } catch (e) {}
+    })
   }
 
   const btnSavePrice = document.getElementById('btnSavePrice')
@@ -1948,7 +2220,7 @@ function confirmDeleteClient() {
 
   saveData()
   deleteClientFromFirestore(clientToDelete)
-  renderClients()
+  renderClients(getCurrentSearchTerm())
   closeModal("deleteClientModal")
   showToast("Cliente eliminado exitosamente", "success")
   clientToDelete = null
@@ -1979,6 +2251,16 @@ function openAddImpresionModal(clientId) {
   } catch (e) {}
 
   openModal("addImpresionModal")
+  // Auto-focus al campo de cantidad y seleccionar su contenido para entrada rápida
+  setTimeout(() => {
+    try {
+      const cantidadEl = document.getElementById('cantidadCarillas')
+      if (cantidadEl) {
+        cantidadEl.focus()
+        if (typeof cantidadEl.select === 'function') cantidadEl.select()
+      }
+    } catch (e) { }
+  }, 60)
 }
 
 function validateImpresionAmount() {
@@ -2084,7 +2366,7 @@ function handleAddImpresion(event) {
   impresiones.push(impresion)
   saveData()
   saveImpresionToFirestore(impresion)
-  renderClients()
+  renderClients(getCurrentSearchTerm())
   closeModal("addImpresionModal")
   showToast("Impresión registrada exitosamente", "success")
 }
@@ -2168,7 +2450,7 @@ function deleteImpresionById(impresionId) {
   impresiones.splice(index, 1)
   saveData()
   deleteImpresionFromFirestore(impresionId)
-  renderClients()
+  renderClients(getCurrentSearchTerm())
 
   const historialModal = document.getElementById('historialModal')
   if (historialModal && historialModal.classList.contains('active')) {
@@ -2697,7 +2979,7 @@ function confirmResetMonth() {
   })
 
   saveData()
-  renderClients()
+  renderClients(getCurrentSearchTerm())
   closeModal("resetMonthModal")
   showToast("Mes reiniciado exitosamente", "success")
 }
@@ -2996,6 +3278,17 @@ function revealAllClients(filteredClients) {
 function openModal(modalId) {
   const modal = document.getElementById(modalId)
   if (!modal) return
+  // Si el modal está anidado dentro de otro contenedor, movemos temporalmente al body
+  try {
+    if (modal.parentElement && modal.parentElement !== document.body) {
+      modal.__origParent = modal.parentElement
+      modal.__origNext = modal.nextSibling
+      document.body.appendChild(modal)
+      // asegurar que se muestre por encima
+      modal.style.zIndex = '11000'
+    }
+  } catch (err) { /* ignore */ }
+
   modal.classList.remove('modal-closing')
   modal.classList.add('active', 'modal-opening')
 
@@ -3046,6 +3339,19 @@ function closeModal(modalId) {
         window.scrollTo({ top: prev, left: 0, behavior: 'auto' })
       }
       delete document.body.dataset.modalScrollY
+      // Si el modal fue movido fuera de su padre original, restaurarlo
+      try {
+        if (modal.__origParent) {
+          if (modal.__origNext && modal.__origNext.parentNode === modal.__origParent) {
+            modal.__origParent.insertBefore(modal, modal.__origNext)
+          } else {
+            modal.__origParent.appendChild(modal)
+          }
+          delete modal.__origParent
+          delete modal.__origNext
+          modal.style.zIndex = ''
+        }
+      } catch (err) { /* ignore */ }
     } catch (e) {
       document.body.style.overflow = "auto"
     }

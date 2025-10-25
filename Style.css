@@ -741,6 +741,17 @@ body {
   padding: 2rem;
 }
 
+/* En tema claro no queremos un overlay tan oscuro que "grise" las tarjetas
+   Usamos un overlay sutil y una sombra más pronunciada en el modal para
+   mantener contraste sin cambiar drásticamente los colores de fondo. */
+:root[data-theme="light"] .modal {
+  background-color: rgba(16, 24, 40, 0.06); /* muy sutil */
+}
+
+:root[data-theme="light"] .modal .modal-content {
+  box-shadow: 0 30px 45px rgba(16,24,40,0.08);
+}
+
 .modal.active {
   display: flex;
   align-items: center;
