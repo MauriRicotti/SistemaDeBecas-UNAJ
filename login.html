@@ -49,11 +49,17 @@
         100% { transform: translate(10%, 8%) scale(1); }
       }
 
-      /* Centering container */
-      body { display:flex; align-items:center; justify-content:center; background: #071022; }
+    /* Centering container: asegurar referencia y min-height; la .login-container
+      se posiciona con absolute para quedar exactamente en el centro */
+    body { position: relative; min-height: 100vh; display:flex; align-items:center; justify-content:center; background: #071022; }
 
       /* Login card (glass) */
       .login-container {
+        position: fixed; /* fijar respecto al viewport para centrar en escritorio */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 50;
         width: 380px;
         max-width: calc(100% - 32px);
         background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
