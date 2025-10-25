@@ -3,24 +3,27 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Sistema de Gestión de Becas - Fotocopiado</title>
+        <title>Sistema de de Becas - UNAJ</title>
         <script>
-            // Aplicar tema guardado lo antes posible para evitar parpadeo (FOUC)
             try {
                 const t = localStorage.getItem('theme') || 'dark'
                 if (t === 'light') document.documentElement.setAttribute('data-theme', 'light')
                 else document.documentElement.setAttribute('data-theme', 'dark')
                 if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
-            } catch (e) { /* ignore */ }
+            } catch (e) {  }
         </script>
         <link rel="stylesheet" href="Style.css">
+    <link rel="stylesheet" href="footer.css">
+        <link rel="icon" href="Imagenes - Web Becas/unaj-removebg-preview becas2png.png" type="image/png">
     </head>
     <body>
-                <!-- Barra de búsqueda flotante que aparece al hacer scroll -->
                 <div id="floatingSearch" class="floating-search" aria-hidden="true">
                     <div class="floating-search-inner">
                         <svg class="svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input id="floatingSearchInput" class="search-input" type="text" placeholder="Buscar cliente...">
+                        <input id="floatingSearchInput" class="search-input" type="text" placeholder="Buscar estudiante...">
+                        <button id="btnClearFloatingSearch" type="button" class="btn btn-secondary btn-clear-icon" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
                     </div>
                 </div>
         <header class="header">
@@ -39,31 +42,34 @@
                         </select>
                     </div>
                     <div id="digitalClock" class="digital-clock header-control" aria-live="polite">--:--:--</div>
-                    <!-- Elemento accesible que describe la advertencia de turno -->
                     <div id="turno-warning" style="display:none;">Atención: el turno seleccionado parece no corresponder al horario actual. Verificar selección.</div>
-                    <!-- Se removió el badge de sincronización solicitada -->
                     <div class="header-actions">
                         <button id="btnRefresh" class="icon-btn" title="Actualizar" aria-label="Actualizar">
-                            <!-- SVG icon: refresh (mejorado) -->
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 0-3.53 6.93"/><polyline points="21 12 21 7 16 7"/></svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14-3.36"></path>
+                                <path d="M20.49 15a9 9 0 0 1-14 3.36"></path>
+                            </svg>
                         </button>
                         <button id="btnDownload" class="icon-btn" title="Descargar" aria-label="Descargar">
-                            <!-- SVG icon: download -->
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         </button>
+                        <button id="btnImport" class="icon-btn" title="Importar" aria-label="Importar" onclick="openImportModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 5 17 10"/><line x1="12" y1="5" x2="12" y2="15"/></svg>
+                        </button>
                         <button id="btnStats" class="icon-btn" title="Estadísticas" aria-label="Estadísticas">
-                            <!-- SVG icon: stats -->
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="14" x2="8" y2="11"/><line x1="12" y1="17" x2="12" y2="11"/><line x1="16" y1="10" x2="16" y2="11"/></svg>
                         </button>
                         <button id="btnThemeToggle" class="icon-btn" title="Alternar tema" aria-label="Alternar tema" aria-pressed="false">
-                            <!-- Icono luna -->
                             <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                            <!-- Icono sol -->
                             <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                         </button>
                         <button id="btnOpenGenerateModal" class="icon-btn" title="Generar Libro PDF" aria-label="Generar Libro" onclick="openModal('generateBookModal')">
-                            <!-- SVG icon: simple book/form -->
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 0 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        </button>
+                        <button id="btnPrice" class="icon-btn" title="Precio por carilla" aria-label="Precio por carilla">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H16a3.5 3.5 0 0 1 0 7H7"/></svg>
                         </button>
                     </div>
                 </div>
@@ -74,31 +80,30 @@
             <section class="card search-card">
                 <div class="search-card-header">
                     <div>
-                        <div class="search-title">Buscar Cliente</div>
+                        <div class="search-title">Buscar Estudiante</div>
                         <div class="search-subtitle">Busca por nombre, apellido o DNI</div>
                     </div>
                 </div>
                 <div class="search-body search-row">
-                    <div class="search-input-wrapper" style="flex:1; height:45px;">
-                        <input id="searchInput" class="search-input" type="text" placeholder="Buscar cliente..." style="height:35px;">
+                    <div class="search-input-wrapper" style="flex:1; height:45px; display:flex; gap:0.5rem; align-items:center;">
+                        <input id="searchInput" class="search-input" type="text" placeholder="Buscar estudiante..." style="height:35px; flex:1;">
+                        <button id="btnClearMainSearch" type="button" class="btn btn-secondary" title="Limpiar búsqueda">Limpiar</button>
                     </div>
-                    <div class="search-add-btn-wrapper"><button class="btn btn-primary" onclick="openAddClientModal()">Agregar Cliente</button></div>
+                    <div class="search-add-btn-wrapper"><button class="btn btn-primary" onclick="openAddClientModal()">Agregar Estudiante</button></div>
                 </div>
             </section>
 
             <section class="card clients-card">
                 <div class="card-header clients-header">
                     <div>
-                            <h2>Clientes Registrados</h2>
+                            <h2>Estudiantes Registrados</h2>
                         </div>
                         <div class="clients-header-actions">
                             <button id="btnFilters" class="btn btn-secondary" onclick="openFiltersModal()" aria-label="Abrir filtros" title="Filtros">
-                                <!-- icono pequeño de embudo opcional -->
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 3H2l7 8v6l6 4v-10l7-8z"/></svg>
                                 <span style="margin-left:0.4rem;">Filtros</span>
                             </button>
-                                <!-- Selector de cantidad por página (6,9,12,15,18) -->
-                                <label id="pageSizeLabel" style="display:flex; align-items:center; gap:0.4rem; font-size:0.95rem;">
+                                                                <label id="pageSizeLabel" style="display:flex; align-items:center; gap:0.4rem; font-size:0.95rem;">
                                     Mostrar
                                     <select id="pageSizeSelect" style="margin:0 0.35rem;">
                                         <option value="6">6</option>
@@ -108,22 +113,27 @@
                                         <option value="18">18</option>
                                     </select>
                                 </label>
-                                <!-- Contenedor breve para mostrar cantidad total -->
-                                <div id="clientCount" style="font-size:0.95rem; color:var(--text-muted);">0 clientes</div>
+                                <button id="clientCount" class="btn btn-secondary" title="Ver estudiantes" style="display:inline-flex; align-items:center; gap:0.6rem;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    <span class="client-count-label" style="font-size:0.95rem; color:var(--text-secondary);">Estudiantes</span>
+                                    <span class="client-count-number" style="font-weight:700;">0</span>
+                                </button>
                         </div>
                 </div>
                 <div id="clientsList" class="clients-list"></div>
-                    <!-- Controles de paginación: Primero / Anterior / números / Siguiente / Último -->
-                    <div id="paginationContainer" style="display:flex; justify-content:center; margin:18px 0; flex-direction:column; align-items:center;">
+                    <div id="paginationContainer" style="display:flex; justify-content:center; margin:18px 0; flex-direction:column; align-items:center; margin-top: 30px; margin-bottom: -10px;">
                         <div id="pagination" aria-label="Paginación"></div>
                         <div id="paginationHint" style="margin-top:8px; font-size:0.82rem; color:var(--text-muted);">Atajo: Ctrl ← / Ctrl → para navegar páginas</div>
                     </div>
             </section>
+            
+            <footer class="site-footer" role="contentinfo">
+                <div class="footer-watermark">Sistema diseñado y desarrollado por Mauricio Ricotti</div>
+            </footer>
+
         </main>
 
-    <!-- Botón volver arriba -->
     <button id="backToTop" class="back-to-top" aria-label="Volver arriba" title="Volver arriba">
-        <!-- Flecha hacia arriba con caja redondeada -->
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="1" y="1" width="22" height="22" rx="4" opacity="0.04"/>
             <path d="M12 16 V8" />
@@ -131,10 +141,9 @@
         </svg>
     </button>
 
-        <!-- Modales y elementos que usa Main.js (IDs requeridos) -->
         <div id="addClientModal" class="modal">
             <div class="modal-content">
-                <div class="modal-header"><h3>Agregar Nuevo Cliente</h3><button class="close-btn" onclick="closeModal('addClientModal')">&times;</button></div>
+                <div class="modal-header"><h3>Agregar Nuevo Estudiante</h3><button class="close-btn" onclick="closeModal('addClientModal')">&times;</button></div>
                 <form id="addClientForm" onsubmit="handleAddClient(event)">
                     <div class="form-group"><label for="nombreApellido">Nombre y Apellido</label><input id="nombreApellido" name="nombreApellido" type="text" required placeholder="Nombre y Apellido"></div>
                     <div class="form-group"><label for="dni">DNI</label><input id="dni" name="dni" type="text" required placeholder="DNI"></div>
@@ -143,18 +152,26 @@
                         <div class="form-group" style="flex:1"><label for="instituto">Instituto</label><select id="instituto" name="instituto" required><option value="">Seleccionar...</option><option value="Salud">Salud</option><option value="Sociales">Sociales</option><option value="Ingeniería">Ingeniería</option></select></div>
                         <div class="form-group" style="width:120px; margin-left:0.5rem"><label for="tipoBeca">Tipo de Beca</label><select id="tipoBeca" name="tipoBeca" required><option value="">Seleccionar...</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select></div>
                     </div>
-                    <div class="form-group"><label for="numeroOrden">Número de Orden</label><input id="numeroOrden" name="numeroOrden" type="number" min="1" required placeholder="Número de Orden"></div>
+                    <div class="form-group">
+                        <label for="numeroOrden">Número de Orden</label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input id="numeroOrden" name="numeroOrden" type="number" min="1" placeholder="Número de Orden" style="flex:1" />
+                            <label style="display:flex; align-items:center; gap:0.4rem; margin-left:0.5rem; white-space:nowrap; font-size:0.9rem; color:var(--text-secondary);">
+                                <input id="autoNumeroOrden" type="checkbox" checked /> Asignar automáticamente
+                            </label>
+                        </div>
+                        <div id="numeroOrdenPreview" style="margin-top:0.45rem; font-size:0.86rem; color:var(--text-secondary); display:none;">Número sugerido: <span id="numeroOrdenSuggested">-</span></div>
+                    </div>
                     <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('addClientModal')">Cancelar</button><button type="submit" class="btn btn-primary">Agregar Cliente</button></div>
                 </form>
             </div>
         </div>
 
-        <!-- Modal para generar libro PDF -->
         <div id="generateBookModal" class="modal">
             <div class="modal-content modal-large">
                 <div class="modal-header"><h3>Generar Libro PDF</h3><button class="close-btn" onclick="closeModal('generateBookModal')">&times;</button></div>
                 <div style="padding:1rem;">
-                    <p style="color:var(--text-muted); font-size:0.95rem;">Genera un PDF por libro. Elige un Instituto y/o Tipo de Beca para filtrar. Si no eliges nada se generará un PDF con todos los clientes. También puedes generar los 9 libros y descargarlos en un ZIP.</p>
+                    <p style="color:var(--text-muted); font-size:0.95rem;">Genera un PDF por libro. Elige un Instituto y/o Tipo de Beca para filtrar. Si no eliges nada se generará un PDF con todos los Estudiantes.</p>
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; align-items:center; margin-top:0.75rem;">
                         <div>
@@ -179,15 +196,34 @@
                         </div>
                     </div>
 
-                    <div style="margin-top:0.75rem; display:flex; gap:0.75rem; align-items:center;">
-                        <label style="display:flex; align-items:center; gap:0.5rem;"><input type="checkbox" id="generateAllBooks" /> Generar y descargar los 9 libros por separado (ZIP)</label>
-                    </div>
 
                     <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
                         <button class="btn btn-secondary" onclick="closeModal('generateBookModal')">Cancelar</button>
                         <button class="btn btn-primary" id="btnGenerateBook">Generar PDF</button>
                     </div>
                     <div id="generateReport" style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.9rem;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="importModal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header"><h3>Importar Estudiantes (CSV / Excel)</h3><button class="close-btn" onclick="closeModal('importModal')">&times;</button></div>
+                <div style="padding:1rem;">
+                    <p style="color:var(--text-muted); font-size:0.95rem;">Selecciona un archivo CSV o Excel para importar clientes. Se mostrará una previsualización y un reporte antes de confirmar la importación.</p>
+
+                    <div style="margin-top:0.6rem;">
+                        <input id="importFileInput" type="file" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleImportFileChange(event)" />
+                    </div>
+
+                    <div id="importReport" style="margin-top:0.6rem; color:var(--text-secondary); font-size:0.9rem;"></div>
+
+                    <div id="importPreview" style="margin-top:0.75rem; max-height:320px; overflow:auto; border:1px solid var(--border-color); background:var(--bg-card); padding:0.6rem; border-radius:6px;"></div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+                        <button class="btn btn-secondary" onclick="closeModal('importModal')">Cancelar</button>
+                        <button class="btn btn-primary" id="btnConfirmImport" onclick="confirmImport()">Importar</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -234,18 +270,22 @@
                 <form id="addImpresionForm" onsubmit="handleAddImpresion(event)">
                     <input id="impresionClientId" type="hidden">
                     <div class="form-group">
-                        <label for="cantidadCarillas">Cantidad de carillas</label>
-                        <input id="cantidadCarillas" name="cantidadCarillas" type="number" min="1" required placeholder="Cantidad">
+                            <label for="cantidadCarillas">Cantidad de carillas</label>
+                            <input id="cantidadCarillas" name="cantidadCarillas" type="number" min="1" max="5000" step="1" inputmode="numeric" pattern="\d*" required placeholder="Cantidad" oninput="updateAmountPreview()">
+                            <div id="impresionAmountPreview" style="margin-top:0.45rem; font-size:0.92rem; color:var(--text-secondary); display:flex; justify-content:space-between; align-items:center;">
+                                <div>Equivale a:</div>
+                                <div><strong id="impresionAmountValue">$0</strong></div>
+                            </div>
                     </div>
                     <div id="warningMessage" class="warning-message" style="display:none;">Esta cantidad excede el límite mensual del cliente</div>
-                    <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('addImpresionModal')">Cancelar</button><button type="submit" class="btn btn-primary">Registrar Impresión</button></div>
+                    <div id="warningMessageMax" class="warning-message" style="display:none;">La cantidad excede el máximo permitido por impresión (5000 carillas)</div>
+                    <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('addImpresionModal')">Cancelar</button><button id="btnRegisterImpresion" type="submit" class="btn btn-primary">Registrar Impresión</button></div>
                 </form>
             </div>
         </div>
 
         <div id="historialModal" class="modal"><div class="modal-content modal-large"><div class="modal-header"><h3>Historial de Impresiones</h3><button class="close-btn" onclick="closeModal('historialModal')">&times;</button></div><div id="historialContent" class="historial-content"></div></div></div>
 
-        <div id="statsModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Estadísticas del Mes</h3><button class="close-btn" onclick="closeModal('statsModal')">&times;</button></div><div id="statsContent" class="stats-content"></div></div></div>
 
                 <div id="filtersModal" class="modal">
                     <div class="modal-content">
@@ -256,7 +296,7 @@
                                 <div class="form-group"><label for="filterAno">Año</label><select id="filterAno" name="filterAno"><option value="">Todos</option></select></div>
                             </div>
                             <div class="form-row">
-                                <div class="form-group"><label for="filterTurno">Turno</label><select id="filterTurno" name="filterTurno"><option value="">Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Noche">Noche</option></select></div>
+                                <div class="form-group"><label for="filterTurno">Turno</label><select id="filterTurno" name="filterTurno"><option value="">Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Unico">Único</option></select></div>
                                 <div class="form-group"><label for="filterTipoBeca">Tipo de Beca</label><select id="filterTipoBeca" name="filterTipoBeca"><option value="">Todos</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select></div>
                             </div>
                             <div class="form-group"><label for="filterInstituto">Instituto</label><select id="filterInstituto" name="filterInstituto"><option value="">Todos</option><option value="Salud">Salud</option><option value="Sociales">Sociales</option><option value="Ingeniería">Ingeniería</option></select></div>
@@ -271,7 +311,7 @@
 
                 <div id="downloadModal" class="modal">
                     <div class="modal-content modal-large">
-                        <div class="modal-header"><h3>Descargar Base de Clientes (PDF)</h3><button class="close-btn" onclick="closeModal('downloadModal')">&times;</button></div>
+                        <div class="modal-header"><h3>Descargar Base de Estudiantes (PDF)</h3><button class="close-btn" onclick="closeModal('downloadModal')">&times;</button></div>
                         <div style="padding:1.25rem;">
                             <p style="color:var(--text-muted); font-size:0.95rem;">Selecciona opcionalmente un Instituto y/o Tipo de Beca. Si dejas ambos en "Todos" se descargará la base completa de clientes (tabla con nombre, DNI, carrera, número de orden, instituto y tipo de beca).</p>
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; align-items:center; margin-top:0.75rem;">
@@ -295,6 +335,8 @@
                                 </div>
                             </div>
 
+                        
+
                             <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
                                 <button class="btn btn-secondary" onclick="closeModal('downloadModal')">Cancelar</button>
                                 <button class="btn btn-primary" id="btnDownloadClients">Generar PDF</button>
@@ -306,6 +348,107 @@
 
     <div id="toast" class="toast"></div>
 
-        <script type="module" src="Main.js"></script>
+                    <div id="statsModal" class="modal">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>Estadísticas del Mes</h3>
+                                <button class="close-btn" onclick="closeModal('statsModal')">&times;</button>
+                            </div>
+
+                            <div class="stats-side">
+                                <div style="padding:0.25rem 0 0 0;">
+                                    <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:0.5rem;">Filtra por mes/año, instituto o tipo de beca. Exporta CSV del resumen.</p>
+
+                                    <div class="stats-controls" style="display:flex; gap:0.5rem; flex-direction:column;">
+                                        <label style="display:flex; flex-direction:column; gap:0.25rem;"><span style="font-size:0.82rem; color:var(--text-secondary);">Mes</span><select id="statsMes"><option value="">Este mes</option><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select></label>
+
+                                        <label style="display:flex; flex-direction:column; gap:0.25rem;"><span style="font-size:0.82rem; color:var(--text-secondary);">Año</span><select id="statsAno"></select></label>
+
+                                        <label style="display:flex; flex-direction:column; gap:0.25rem;"><span style="font-size:0.82rem; color:var(--text-secondary);">Instituto</span><select id="statsInstituto"><option value="">Todos</option><option value="Salud">Salud</option><option value="Sociales">Sociales</option><option value="Ingeniería">Ingeniería</option></select></label>
+
+                                        <label style="display:flex; flex-direction:column; gap:0.25rem;"><span style="font-size:0.82rem; color:var(--text-secondary);">Tipo</span><select id="statsTipo"><option value="">Todos</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select></label>
+
+                                        <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+                                            <button id="btnExportStats" class="btn btn-secondary" style="flex:1;">Exportar PDF</button>
+                                            <button class="btn btn-secondary" onclick="closeModal('statsModal')" style="flex:1;">Cerrar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="statsContent" class="stats-content" style="padding:1rem;">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="clientsGridModal" class="modal">
+                        <div class="modal-content modal-large">
+                            <div class="modal-header">
+                                <h3>Listado de Clientes</h3>
+                                <button class="close-btn" onclick="closeModal('clientsGridModal')">&times;</button>
+                            </div>
+                            <div style="padding:1rem;">
+                                <div class="clients-grid-controls" style="margin-bottom:0.75rem;">
+                                    <div class="clients-grid-filters">
+                                        <button class="btn btn-secondary institute-filter" data-inst="">Todos</button>
+                                        <button class="btn btn-secondary institute-filter" data-inst="Salud">Salud</button>
+                                        <button class="btn btn-secondary institute-filter" data-inst="Sociales">Sociales</button>
+                                        <button class="btn btn-secondary institute-filter" data-inst="Ingeniería">Ingeniería</button>
+                                    </div>
+                                    <div class="clients-grid-actions">
+                                            <button class="btn btn-secondary" onclick="closeModal('clientsGridModal')">Cerrar</button>
+                                            <button id="btnExportClientsGrid" class="btn btn-primary">Exportar PDF</button>
+                                    </div>
+                                </div>
+
+                                    <div class="clients-grid-search-row" style="display:flex; gap:0.6rem; align-items:center; margin-bottom:0.5rem;">
+                                        <input id="clientsGridSearch" class="search-input" type="text" placeholder="Buscar nombre o DNI..." style="flex:1; height:36px; padding:6px 10px;" />
+                                        <button id="btnClearGridSearch" type="button" class="btn btn-secondary" title="Limpiar búsqueda" style="height:36px;">Limpiar</button>
+                                        <div class="clients-grid-help" style="font-size:0.9rem; color:var(--text-muted);">Haz clic en una fila para seleccionarla</div>
+                                    </div>
+
+                                    <div style="max-height:520px; overflow:auto; border:1px solid var(--border-color); background:var(--bg-card); padding:0.5rem; border-radius:6px;">
+                                    <table id="clientsGridTable" style="width:100%; border-collapse:collapse; font-size:0.92rem;">
+                                        <thead>
+                                            <tr style="text-align:left; border-bottom:1px solid rgba(255,255,255,0.04);">
+                                                <th style="padding:8px 10px; width:24%">Nombre</th>
+                                                <th style="padding:8px 10px; width:12%">DNI</th>
+                                                <th style="padding:8px 10px; width:20%">Carrera</th>
+                                                <th style="padding:8px 10px; width:12%">Instituto</th>
+                                                <th style="padding:8px 10px; width:6%">Tipo</th>
+                                                <th style="padding:8px 10px; width:6%">N°</th>
+                                                <th style="padding:8px 10px; width:10%; text-align:right">Carillas</th>
+                                                <th style="padding:8px 10px; width:10%; text-align:right">Restantes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="clientsGridBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="toast" class="toast"></div>
+
+                    <div id="priceModal" class="modal">
+                        <div class="modal-content modal-small">
+                            <div class="modal-header"><h3>Precio por carilla</h3><button class="close-btn" onclick="closeModal('priceModal')">&times;</button></div>
+                            <div style="padding:1rem;">
+                                <div style="margin-bottom:0.6rem; color:var(--text-muted); font-size:0.95rem;">Define cuánto vale 1 carilla en pesos. Esto se usará para calcular el monto de cada impresión.</div>
+                                <div class="form-group">
+                                    <label for="pricePerCarilla">Precio (ARS)</label>
+                                    <input id="pricePerCarilla" type="number" min="0" step="1" style="width:140px; padding:0.45rem; border-radius:6px;" />
+                                </div>
+                                <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.75rem;">
+                                    <button class="btn btn-secondary" onclick="closeModal('priceModal')">Cancelar</button>
+                                    <button id="btnSavePrice" class="btn btn-primary">Guardar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+                    <script type="module" src="Main.js"></script>
     </body>
 </html>

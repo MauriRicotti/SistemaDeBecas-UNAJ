@@ -4,7 +4,7 @@
   box-sizing: border-box;
 }
 
-/* Evitar overflow horizontal global */
+
 html, body {
   overflow-x: hidden;
 }
@@ -27,7 +27,7 @@ html, body {
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
-/* Tema claro (cuando se usa [data-theme="light"]) */
+
 :root[data-theme="light"] {
   --bg-primary: #f8fafc;
   --bg-secondary: #f1f5f9;
@@ -72,7 +72,7 @@ body {
   margin-bottom: 0.25rem;
 }
 
-/* Estilos de paginación añadidos al final */
+
 #pagination {
   display:flex;
   align-items:center;
@@ -92,7 +92,7 @@ body {
   border: none;
 }
 
-/* Selector de tamaño de página: estilo compacto */
+
 #pageSizeSelect {
   padding:4px 6px;
   border-radius:6px;
@@ -100,14 +100,15 @@ body {
   background: transparent;
 }
 
-/* Hacer que el label y el selector se vean como en el mock: texto corto y selector compacto */
+
 #pageSizeLabel { color: var(--text-secondary); display:flex; align-items:center; }
 #pageSizeLabel select { background: var(--bg-card); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.04); padding:6px 8px; border-radius:8px; box-shadow: none; }
 
-/* Hacer que el selector y el contador se vean como botones (fondo, padding, bordes redondeados) */
+
 #pageSizeLabel, #clientCount {
   background: var(--bg-card);
-  padding: 6px 10px;
+  /* usar el mismo padding que los botones .btn para igualar alturas */
+  padding: 0.75rem 1.25rem;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.04);
   display:inline-flex;
@@ -116,7 +117,7 @@ body {
 }
 #clientCount { color: var(--text-secondary); font-size:0.95rem }
 
-/* Asegurar que en tema claro las cajas del selector y contador sean visibles (fondo y borde) */
+
 :root[data-theme="light"] #pageSizeLabel,
 :root[data-theme="light"] #clientCount {
   background: var(--bg-card);
@@ -131,10 +132,10 @@ body {
   border: 1px solid var(--border-color);
 }
 
-/* Espacio superior/ inferior de la paginación: igual */
+
 #paginationContainer { margin-top: 18px; margin-bottom: 18px }
 
-/* Animaciones de cambio de página para tarjetas: salida e entrada (fade + translateY) */
+
 .page-exit {
   opacity: 1;
   transform: translateY(0);
@@ -154,7 +155,7 @@ body {
   transition: opacity 320ms ease, transform 320ms cubic-bezier(.2,.8,.2,1);
 }
 
-/* Ajustes responsivos para paginación */
+
 @media (max-width: 520px) {
   #pagination { gap:6px }
   #pagination .btn { min-width:30px; height:32px; font-size:0.85rem }
@@ -222,7 +223,7 @@ body {
 }
 
 .card {
-  background-color: #0f172a; /* ligeramente más oscuro para contraste */
+  background-color: #0f172a;
   border-color: rgba(255,255,255,0.03);
 }
 
@@ -251,7 +252,7 @@ body {
   align-items: center;
   gap: 0.75rem;
   background-color: var(--bg-card);
-  padding: 0.3rem 0.6rem; /* ajustar padding para igualar altura */
+  padding: 0.3rem 0.6rem;
   border-radius: 0.5rem;
   border: 1px solid var(--border-color);
 }
@@ -265,7 +266,7 @@ body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 0.45rem 0.85rem; /* similar a los botones */
+  padding: 0.45rem 0.85rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   cursor: pointer;
@@ -274,7 +275,7 @@ body {
 .header-control {
   display: inline-flex;
   align-items: center;
-  height: 40px; /* altura objetivo para botones y select */
+  height: 40px;
 }
 
 .icon-btn {
@@ -423,7 +424,7 @@ body {
   white-space: nowrap;
 }
 
-/* Wrapper del botón 'Agregar Cliente' para controlar responsive sin inline styles */
+
 .search-add-btn-wrapper { display: inline-block }
 .search-add-btn-wrapper .btn { white-space: nowrap }
 
@@ -440,6 +441,21 @@ body {
 .search-input:focus {
   outline: none;
   border-color: var(--blue-primary);
+}
+
+/* Botones "Limpiar" al lado de inputs: ajustar altura y alineación para coincidir con los inputs */
+#btnClearMainSearch, #btnClearFloatingSearch, #btnClearGridSearch {
+  height: 36px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 6px;
+}
+
+/* Hacer que las filas de la grilla sean claramente clickeables (cursor) */
+#clientsGridTable tr.grid-row {
+  cursor: pointer;
 }
 
 .action-buttons {
@@ -521,7 +537,7 @@ body {
 
 .clients-list {
   display: grid;
-  /* reducir min width para que las tarjetas no fuerzen scroll horizontal en móviles */
+ 
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 }
@@ -532,13 +548,13 @@ body {
   border-radius: 0.5rem;
   padding: 1.25rem;
   transition: transform 0.2s;
-  position: relative; /* permitir pseudo-elementos (franja de color) */
+  position: relative;
   max-width: 100%;
   box-sizing: border-box;
   word-wrap: break-word;
 }
 
-/* Animación de entrada: se usará por JS para las primeras tarjetas */
+
 .client-card {
   will-change: transform, opacity;
 }
@@ -548,16 +564,16 @@ body {
   transform: translateY(12px);
 }
 
-/* Asegurar que los iconos del toggle se muestren correctamente */
+
 .icon-sun, .icon-moon { display: inline-block; vertical-align: middle; }
 
-/* Mostrar/ocultar íconos dependiendo del tema para evitar parpadeo */
+
 :root[data-theme="light"] .icon-sun { display: inline-block }
 :root[data-theme="light"] .icon-moon { display: none }
 :root[data-theme="dark"] .icon-sun { display: none }
 :root[data-theme="dark"] .icon-moon { display: inline-block }
 
-/* Search card animación (se aplica desde JS) */
+
 .search-card {
   transition: opacity 560ms ease, transform 560ms cubic-bezier(.2,.8,.2,1);
 }
@@ -621,10 +637,10 @@ body {
   font-weight: 500;
 }
 
-/* Resaltar Instituto y Número de Orden en la tarjeta del cliente */
+
 .client-institute {
   background-color: rgba(59,130,246,0.06);
-  color: #93c5fd; /* azul claro */
+  color: #93c5fd;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
   font-weight: 700;
@@ -634,7 +650,7 @@ body {
 
 .client-order {
   background-color: rgba(16,185,129,0.06);
-  color: #86efac; /* verde claro */
+  color: #86efac;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
   font-weight: 700;
@@ -642,8 +658,8 @@ body {
   display: inline-block;
 }
 
-/* Botón pequeño para copiar datos (DNI) */
-/* (Se removió el botón 'Copiar DNI' - reglas eliminadas) */
+
+
 
 .beca-badge {
   display: inline-block;
@@ -731,6 +747,54 @@ body {
   justify-content: center;
 }
 
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+@keyframes modal-backdrop-out {
+  from { opacity: 1 }
+  to   { opacity: 0 }
+}
+
+@keyframes modal-content-in {
+  from { transform: translateY(10px) scale(0.995); opacity: 0 }
+  to   { transform: translateY(0) scale(1); opacity: 1 }
+}
+
+@keyframes modal-content-out {
+  from { transform: translateY(0) scale(1); opacity: 1 }
+  to   { transform: translateY(8px) scale(0.995); opacity: 0 }
+}
+
+
+.modal.modal-opening {
+  display: flex;
+  animation: modal-backdrop-in 260ms cubic-bezier(.2,.9,.2,1) forwards;
+}
+
+.modal.modal-opening .modal-content {
+  animation: modal-content-in 260ms cubic-bezier(.2,.9,.2,1) forwards;
+}
+
+
+.modal.modal-closing {
+  display: flex;
+  pointer-events: none;
+  animation: modal-backdrop-out 160ms cubic-bezier(.4,0,.2,1) forwards;
+}
+
+.modal.modal-closing .modal-content {
+  animation: modal-content-out 160ms cubic-bezier(.4,0,.2,1) forwards;
+}
+
+
+.modal.active .modal-content {
+  opacity: 1;
+  transform: none;
+}
+
 .modal-content {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -746,6 +810,87 @@ body {
 
 .modal-small {
   max-width: 400px;
+}
+
+
+.modal-content.modal-large {
+  /* Aumentamos el ancho máximo en escritorio para que la tabla del modal tenga más espacio */
+  max-width: 1100px;
+  width: calc(100% - 48px);
+  margin: 18px auto;
+  box-sizing: border-box;
+  max-height: 88vh;
+  overflow: hidden;
+}
+
+
+.modal-content.modal-large > div:not(.modal-header),
+.modal-content.modal-large form,
+.modal-content.modal-large .modal-body {
+  max-height: calc(88vh - 64px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+
+.clients-grid-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.clients-grid-filters { display:flex; gap:0.5rem; }
+.clients-grid-actions { margin-left: auto; display:flex; gap:0.5rem; }
+
+
+#clientsGridTable .grid-institute-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+
+#clientsGridTable .grid-institute-badge.instituto-salud { background: #f6c000; color: #111; }
+#clientsGridTable .grid-institute-badge.instituto-sociales { background: #5bc0ff; color: #042428; }
+#clientsGridTable .grid-institute-badge.instituto-ingenieria { background: #e14b4b; color: #111; }
+
+
+#clientsGridTable tr.grid-row td:first-child { padding-left: 12px; }
+#clientsGridTable tr.grid-row.instituto-salud td:first-child { border-left: 6px solid #f6c000; }
+#clientsGridTable tr.grid-row.instituto-sociales td:first-child { border-left: 6px solid #5bc0ff; }
+#clientsGridTable tr.grid-row.instituto-ingenieria td:first-child { border-left: 6px solid #e14b4b; }
+
+
+#clientsGridTable tr.grid-row:hover {
+  /* más visible en tema oscuro */
+  background: rgba(255,255,255,0.03);
+}
+
+/* En tema claro el hover necesita mayor contraste para notarse */
+:root[data-theme="light"] #clientsGridTable tr.grid-row:hover {
+  background: rgba(16,24,40,0.04); /* ligero gris oscuro sobre fondo claro */
+}
+
+@media (max-width: 600px) {
+  .modal-content.modal-large { width: calc(100% - 28px); max-width: 520px; }
+  .clients-grid-controls { flex-direction: column; align-items: stretch; }
+  .clients-grid-filters { order: 1; display:flex; gap:0.5rem; flex-wrap:wrap; }
+  .clients-grid-actions { order: 2; margin-left:0; justify-content: space-between; }
+  .clients-grid-actions .btn { flex: 1 1 48%; }
+}
+
+
+body.modal-open {
+ 
+  overscroll-behavior: none;
+}
+
+
+.modal {
+  overscroll-behavior: contain;
 }
 
 .modal-header {
@@ -933,78 +1078,7 @@ body {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-  /* Mejoras responsive para cabecera en móviles */
-  @media (max-width: 600px) {
-    .header {
-      padding: 1rem 0.5rem;
-    }
-
-    .header-grid {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.75rem;
-    }
-
-    .header-left {
-      width: 100%;
-    }
-
-    .header-left h1 {
-      font-size: 1.125rem;
-    }
-
-    .header-subtitle {
-      font-size: 0.8rem;
-    }
-
-    .header-right {
-      width: 100%;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .turno-selector {
-      flex: 1 1 auto;
-      min-width: 120px;
-    }
-
-    .digital-clock {
-      min-width: 80px;
-      padding: 0.25rem 0.5rem;
-      font-size: 0.85rem;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 0.4rem;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: flex-end;
-      width: 100%;
-    }
-
-    .icon-btn {
-      padding: 0.4rem;
-      height: 36px;
-      min-width: 36px;
-    }
-
-    .icon-btn svg { width: 14px; height: 14px }
-
-    .btn {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.85rem;
-    }
-
-    /* Asegurar que el contenedor principal no desborde horizontalmente */
-    body, .container {
-      overflow-x: hidden;
-    }
-  }
-    max-width: 1100px; /* más ancho en desktop */
+    max-width: 1100px;
   }
 
   #statsModal .stats-content {
@@ -1015,8 +1089,16 @@ body {
     overflow-y: auto;
   }
 
+ 
   #statsModal .modal-content > .modal-header {
-    display: none; /* ocultamos header duplicado en disposición horizontal */
+    display: flex;
+    flex: 0 0 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: transparent;
+    z-index: 5;
   }
 
   #statsModal .modal-content .stats-side {
@@ -1109,21 +1191,21 @@ body {
     grid-template-columns: 1fr;
   }
 
-  /* Asegurar que la franja lateral no provoque overflow en móviles */
+ 
   .client-card.instituto-salud,
   .client-card.instituto-sociales,
   .client-card.instituto-ingenieria {
-    padding-left: 1rem; /* menos espacio para móviles */
+    padding-left: 1rem;
   }
 
-  /* Forzar que el contenedor de acciones de cabecera pueda quebrar líneas y no fuerce ancho */
+ 
   .clients-header-actions {
     white-space: normal !important;
     flex-wrap: wrap;
     gap: 0.5rem;
   }
 
-  /* Reordenar header de 'Clientes Registrados' en móviles: 4 filas */
+ 
   .clients-header {
     flex-direction: column;
     align-items: stretch;
@@ -1131,11 +1213,11 @@ body {
   }
 
   .clients-header > div:first-child {
-    /* el título */
+   
     width: 100%;
   }
 
-  /* Forzar orden de los elementos dentro de clients-header-actions: filtros, selector, contador */
+ 
   .clients-header-actions {
     display: flex;
     flex-direction: column;
@@ -1144,22 +1226,22 @@ body {
     width: 100%;
   }
 
-  /* Dentro de clients-header-actions: forzar orden y ancho 100% para cada control */
-  /* Cada control ocupa el 100% y mantenemos orden lógico */
+ 
+ 
   .clients-header-actions > #btnFilters,
   .clients-header-actions > #pageSizeLabel,
   .clients-header-actions > #clientCount {
     width: 100%;
     display: inline-flex;
-    justify-content: center; /* centrar controles visualmente */
+    justify-content: center;
   }
 
-  /* Botón filtros ocupa todo el ancho y estilo consistente */
+ 
   .clients-header-actions > #btnFilters {
     padding: 0.8rem 1rem;
   }
 
-  /* Forzar que los hijos directos del search-row (incluido el div con margin inline) ocupen 100% sin margen lateral */
+ 
   .search-row {
     flex-direction: column;
     align-items: stretch;
@@ -1172,7 +1254,7 @@ body {
   .search-add-btn-wrapper { margin-left: 0; width: 100%; }
   .search-add-btn-wrapper .btn { width: 100%; }
 
-  /* Hacer los botones de paginación menos anchos en móvil */
+ 
   #pagination .btn {
     min-width: 34px;
     height: 34px;
@@ -1180,7 +1262,7 @@ body {
     font-size: 0.88rem;
   }
 
-  /* Mejor presentación de la paginación en móvil: evitar wrap y permitir scroll horizontal suave */
+ 
   #pagination {
     display: flex;
     gap: 8px;
@@ -1194,7 +1276,7 @@ body {
   #pagination > div { display: inline-flex }
   #pagination .btn { flex: 0 0 auto }
 
-  /* Apilar buscador arriba y botón debajo en pantallas pequeñas */
+ 
   .search-row {
     flex-direction: column;
     align-items: stretch;
@@ -1209,13 +1291,13 @@ body {
     margin-left: 0 !important;
   }
 
-  /* Hacer el botón de agregar cliente más compacto y evitar overflow */
+ 
   .search-row .btn {
     padding: 0.6rem 0.9rem;
     font-size: 0.95rem;
   }
 
-  /* Paginación: ocupar menos espacio y permitir wrap controlado */
+ 
   #pagination {
     justify-content: center;
   }
@@ -1227,12 +1309,18 @@ body {
   }
 
 
-  /* Ocultar la pista de atajo en móviles y tablets; mostrar solo en escritorio grande */
+ 
   #paginationHint { display: none !important; }
 }
 
 @media (min-width: 1025px) {
   #paginationHint { display: block !important; }
+}
+
+@media (min-width: 1024px) {
+  .modal-content {
+    max-width: 640px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1248,17 +1336,17 @@ body {
     padding-left: calc(0.75rem + 6px);
   }
 
-  /* Reducir gaps para evitar overflow */
+ 
   .clients-list { gap: 0.6rem }
   .card { padding: 1rem }
 }
 
-/* Paginación compacta en desktop: limitar altura y usar ellipsis visual si needed */
+
 @media (min-width: 521px) {
   #pagination { gap: 6px }
 }
 
-/* Estilos para botones de paginación con ellipsis */
+
 .pagination-ellipsis {
   display: inline-flex;
   align-items: center;
@@ -1269,7 +1357,21 @@ body {
   color: var(--text-muted);
 }
 
-/* Inner container for pagination buttons (used by JS) */
+
+@media (max-width: 520px) {
+  #importModal .modal-content > div > div {
+    flex-direction: column;
+    align-items: stretch;
+  }
+ 
+  #importModal .modal-content > div > div input[type="file"] {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+  }
+}
+
+
 .pagination-inner {
   display: flex;
   gap: 8px;
@@ -1279,7 +1381,7 @@ body {
 }
 
 @media (max-width: 768px) {
-  /* No horizontal scroll: permitir wrap y centrar. Botones más pequeños para caber. */
+ 
   .pagination-inner { flex-wrap: wrap; justify-content: center; padding: 6px 4px }
   #pagination .btn { min-width: 30px; height: 32px; padding: 0 6px; font-size: 0.82rem }
   .pagination-ellipsis { min-width: 30px; height: 32px; font-size: 0.9rem }
@@ -1309,7 +1411,7 @@ body {
   100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.12); }
 }
 
-/* Scrollbar personalizado */
+
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -1327,11 +1429,366 @@ body {
   background: var(--bg-hover);
 }
 
-/* Reglas específicas para tema claro: tarjetas y búsqueda deben ser claras */
+/* ---------- Ajustes móviles: apilar controles en modal y en la barra de búsqueda ---------- */
+@media (max-width: 600px) {
+  /* Modal: apilar controles de la cabecera del modal para que no compriman la tabla */
+  .clients-grid-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .clients-grid-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .clients-grid-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Asegurar que la búsqueda del modal y su botón Limpiar ocupen líneas separadas */
+  #clientsGridSearch {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  #btnClearGridSearch {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Barra de búsqueda principal: apilar input y botón Limpiar */
+  .search-body .search-input-wrapper {
+    flex-direction: column !important;
+    align-items: stretch;
+    gap: 0.5rem;
+    height: auto !important;
+  }
+  /* Input ocupa toda la línea */
+  .search-body .search-input-wrapper .search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+  }
+  /* Botón Limpiar de la tarjeta Buscar Estudiante */
+  #btnClearMainSearch {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Floating search: apilar internamente para evitar solapamientos en móviles pequeños */
+  .floating-search .floating-search-inner {
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: stretch;
+  }
+  #btnClearFloatingSearch {
+    width: 100% !important;
+  }
+}
+
+/* Reglas específicas y contundentes para la búsqueda flotante en móviles
+   (se colocan al final para sobrescribir duplicados más arriba) */
+@media (max-width: 600px) {
+  .floating-search {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    top: 10px !important;
+    width: calc(100% - 32px) !important;
+    max-width: 520px !important;
+    padding: 0.6rem !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 26px rgba(2,6,23,0.08) !important;
+  }
+
+  .floating-search .floating-search-inner {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+
+  .floating-search input.search-input {
+    width: 100% !important;
+    background: transparent !important;
+    padding: 0.45rem 0.5rem !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+    border: 1px solid var(--border-color) !important;
+  }
+
+  #btnClearFloatingSearch {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0.6rem 0.85rem !important;
+  }
+
+  /* Ajuste del icono para que no haga overflow */
+  .floating-search .svg-icon { flex: 0 0 auto; }
+}
+
+/* Compact floating-search layout: icon + input + small X button on single line for mobile */
+@media (max-width: 600px) {
+  .floating-search .floating-search-inner {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.5rem !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  .floating-search input.search-input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important; /* allow shrinking in flex */
+    padding: 0.45rem 0.6rem !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-color) !important;
+    background: transparent !important;
+  }
+
+  /* Small square button with X icon to save horizontal space */
+  #btnClearFloatingSearch {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  .btn-clear-icon svg { width: 16px; height: 16px; }
+}
+
+/* Específico: apilar input, botón Limpiar y texto de ayuda en el modal de listado */
+@media (max-width: 600px) {
+  .clients-grid-search-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem;
+  }
+  .clients-grid-search-row .search-input {
+    width: 100% !important;
+  }
+  #btnClearGridSearch {
+    width: 100% !important;
+  }
+  .clients-grid-help {
+    width: 100% !important;
+    text-align: left;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+}
+
+
+@media (max-width: 600px) {
+ 
+  #statsModal.modal.active {
+    align-items: flex-start;
+    padding-top: 10px;
+  }
+
+  #statsModal .modal-content {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: 95vh;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+ 
+  #statsModal .modal-content .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: var(--bg-secondary);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+ 
+  #statsModal .modal-content .stats-side,
+  #statsModal .modal-content #statsContent {
+    max-height: calc(95vh - 64px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+ 
+  #statsModal .modal-content .stats-side .stats-controls {
+    gap: 0.6rem !important;
+  }
+  #statsModal .modal-content .stats-side .stats-controls button {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+
+#statsModal .modal-content {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: auto 1fr;
+  gap: 0.75rem;
+  max-height: 90vh;
+  width: min(98vw, 900px);
+  border-radius: 12px;
+  overflow: hidden;
+  background-clip: padding-box;
+}
+
+#statsModal .modal-content .modal-header {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.75rem 1rem;
+}
+
+#statsModal .modal-content #statsContent {
+  grid-column: 1 / 2;
+  overflow-y: auto;
+  padding: 1rem;
+  min-width: 0;
+}
+
+#statsModal .modal-content .stats-side {
+  grid-column: 2 / 3;
+  overflow-y: auto;
+  padding: 1rem;
+ 
+  border-left: none;
+  box-shadow: inset 1px 0 0 rgba(255,255,255,0.02);
+}
+
+@media (max-width: 600px) {
+ 
+  #statsModal .modal-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    width: calc(100vw - 20px);
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  #statsModal .modal-content .stats-side {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,0.02);
+  }
+
+ 
+  #statsModal .modal-content #statsContent,
+  #statsModal .modal-content .stats-side {
+    max-height: calc(90vh - 68px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+ 
+  #statsModal .modal-content #statsContent { grid-row: 3; }
+}
+
+
+.stats-controls select { background: var(--bg-card); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.04); padding:6px 8px; border-radius:8px; }
+.stats-content { display:block; }
+.stats-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:0.8rem; }
+.stat-card { background: var(--bg-card); padding:0.85rem; border-radius:10px; box-shadow: var(--shadow, none); border: 1px solid rgba(255,255,255,0.03); }
+.stat-card .stat-label { font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.35rem; }
+.stat-card .stat-value { font-size:1.6rem; font-weight:700; color:var(--text-primary); }
+.stat-card .stat-subtitle { font-size:0.82rem; color:var(--text-muted); margin-top:0.35rem }
+
+.stats-charts { display:grid; grid-template-columns: 1fr 1fr; gap:0.8rem; margin-top:0.9rem; }
+.stat-chart { background: var(--bg-card); padding:0.75rem; border-radius:10px; border:1px solid rgba(255,255,255,0.03); }
+.chart-title { font-size:0.9rem; color:var(--text-secondary); margin-bottom:0.5rem }
+.bar-row { display:flex; align-items:center; gap:0.6rem; margin-bottom:0.5rem }
+.bar-label { width:90px; font-size:0.85rem; color:var(--text-muted) }
+.bar { flex:1; height:12px; background: rgba(255,255,255,0.04); border-radius:999px; overflow:hidden }
+.bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--accent, #5bc0ff), rgba(91,192,255,0.6)); border-radius:999px }
+.top-list { margin-top:0.6rem; }
+.top-list li { padding:6px 0; border-bottom:1px dashed rgba(255,255,255,0.02); display:flex; justify-content:space-between; align-items:center }
+
+.export-btn { display:inline-flex; gap:0.4rem; align-items:center }
+
+@media (max-width: 900px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-charts { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+
+input[type="file"] {
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0;
+}
+
+
+input[type="file"]::file-selector-button {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.45rem 0.8rem;
+  margin-right: 0.6rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+
+input[type="file"]::-webkit-file-upload-button {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.45rem 0.8rem;
+  margin-right: 0.6rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--blue-primary);
+  color: var(--text-primary);
+}
+
+
+@media (max-width: 520px) {
+  input[type="file"]::file-selector-button,
+  input[type="file"]::-webkit-file-upload-button {
+    padding: 0.45rem 0.6rem;
+    margin-right: 0.4rem;
+    font-size: 0.92rem;
+  }
+}
+
+
+
 :root[data-theme="light"] .search-card,
 :root[data-theme="light"] .client-card,
 :root[data-theme="light"] .clients-card {
-  background: #ffffff; /* blanco */
+  background: #ffffff;
   color: var(--text-primary);
   box-shadow: 0 6px 18px rgba(20,24,31,0.06);
   border: 1px solid rgba(16,24,40,0.06);
@@ -1346,14 +1803,14 @@ body {
   color: var(--text-primary);
 }
 
-/* Input blanco y texto oscuro en tema claro */
+
 :root[data-theme="light"] .search-input {
   background: #ffffff;
   border: 1px solid rgba(16,24,40,0.06);
   color: var(--text-primary);
 }
 
-/* Floating search (cuando aparece al hacer scroll) en tema claro */
+
 :root[data-theme="light"] .floating-search {
   background: #ffffff;
   color: var(--text-primary);
@@ -1367,25 +1824,25 @@ body {
   border: none;
 }
 
-/* Bordes por instituto en tarjetas de clientes: asegurar alta visibilidad en tema claro */
+
 .client-card.instituto-salud,
 .client-card.instituto-sociales,
 .client-card.instituto-ingenieria {
-  /* Neutralizamos cualquier border-left heredado: usamos el pseudo-elemento ::before para la franja */
+ 
   border-left: 0 !important;
 }
 
-/* Pseudo-elemento más robusto para la franja de instituto (no se pisa por otras reglas) */
+
 .client-card.instituto-salud::before,
 .client-card.instituto-sociales::before,
 .client-card.instituto-ingenieria::before {
   content: "";
   position: absolute;
-  left: 0; /* pegada al borde izquierdo */
+  left: 0;
   top: 0;
   bottom: 0;
   width: 6px;
-  border-radius: 0.5rem 0 0 0.5rem; /* que siga la curva de la tarjeta */
+  border-radius: 0.5rem 0 0 0.5rem;
   pointer-events: none;
   transition: opacity 160ms ease, transform 160ms ease;
   z-index: 2;
@@ -1394,26 +1851,26 @@ body {
 .client-card.instituto-sociales::before { background: #5bc0ff; }
 .client-card.instituto-ingenieria::before { background: #e14b4b; }
 
-/* Movemos el contenido a la derecha para no pisar la franja */
+
 .client-card.instituto-salud,
 .client-card.instituto-sociales,
 .client-card.instituto-ingenieria {
   padding-left: calc(1.25rem + 10px);
 }
 
-/* Asegurar que no queden bordes heredados en tema claro: la franja se dibuja con ::before */
+
 :root[data-theme="light"] .client-card.instituto-salud,
 :root[data-theme="light"] .client-card.instituto-sociales,
 :root[data-theme="light"] .client-card.instituto-ingenieria {
   border-left: 0 !important;
 }
 
-/* Aumentar contraste en la tarjeta para que el borde destaque mejor */
+
 :root[data-theme="light"] .client-card {
   box-shadow: 0 8px 28px rgba(16,24,40,0.06);
 }
 
-/* Floating search: resaltar sutilmente al aparecer (ambos temas) */
+
 .floating-search {
   position: fixed;
   top: 18px;
@@ -1434,20 +1891,20 @@ body {
   box-shadow: 0 10px 30px rgba(2,6,23,0.08);
 }
 
-/* Tema claro: background blanco translúcido para destacar contra el fondo */
+
 :root[data-theme="light"] .floating-search {
   background: rgba(255,255,255,0.98);
   border: 1px solid rgba(16,24,40,0.06);
 }
 
-/* Tema oscuro: fondo semitransparente y ligero blur para separar del fondo */
+
 :root[data-theme="dark"] .floating-search {
   background: rgba(10,14,20,0.6);
   border: 1px solid rgba(255,255,255,0.04);
   backdrop-filter: blur(6px);
 }
 
-/* Asegurar contraste del badge de instituto en tema claro */
+
 :root[data-theme="light"] .client-institute {
   background: transparent;
   color: var(--text-primary);
@@ -1455,7 +1912,7 @@ body {
 }
 
 
-/* Reglas móviles específicas para la cabecera: turno + reloj en la misma fila, acciones en fila inferior, título centrado */
+
 @media (max-width: 600px) {
   .header {
     padding: 1rem 0;
@@ -1492,13 +1949,13 @@ body {
     gap: 0.35rem;
   }
 
-  /* fila superior: turno + reloj */
+ 
   .header-top-row { display: flex; gap: 0.5rem; align-items: center; justify-content: center; width: 100%; }
 
   .turno-selector { order: 0; }
   .digital-clock { order: 1; }
 
-  /* acciones en fila separada */
+ 
   .header-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; width: 100%; }
 
   .turno-selector select { width: 120px; }
@@ -1508,7 +1965,62 @@ body {
   body, .container { overflow-x: hidden; }
 }
 
-/* Floating search that appears when main search scrolls out */
+
+
+@media (max-width: 600px) {
+ 
+  #statsModal .modal-content {
+    max-height: 95vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    padding: 0.5rem;
+    border-radius: 10px;
+  }
+
+ 
+  #statsModal .modal-content .modal-header {
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
+  }
+
+ 
+  #statsModal .modal-content .stats-side,
+  #statsModal .modal-content #statsContent {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+ 
+  #statsModal .modal-content .stats-side .stats-controls,
+  #statsModal .modal-content .stats-side .stats-controls * {
+    position: relative !important;
+  }
+}
+
+
+@media (min-width: 992px) {
+  #statsModal .modal-content {
+    width: min(96vw, 1100px) !important;
+    max-width: 1100px !important;
+    max-height: 88vh;
+    box-sizing: border-box;
+    padding: 0;
+  }
+
+  #statsModal .modal-content .stats-side {
+    padding: 2rem;
+  }
+
+  #statsModal .modal-content #statsContent {
+    padding: 2rem 2rem 2rem 2rem;
+  }
+}
+
+
+
 .floating-search {
   position: fixed;
   top: 12px;
@@ -1535,11 +2047,11 @@ body {
 .floating-search .floating-search-inner { display:flex; align-items:center; gap:0.6rem; width:100% }
 .floating-search input.search-input { background:transparent; border:none; color:var(--text-primary); width:100%; padding:0.35rem 0 }
 
-/* Back to top button */
+
 .back-to-top {
-  display: none; /* oculto por defecto en top */
+  display: none;
   position: fixed;
-  right: 1rem; /* mover a la esquina inferior derecha */
+  right: 1rem;
   bottom: 1.25rem;
   width: 44px;
   height: 44px;
@@ -1556,21 +2068,55 @@ body {
 
 .back-to-top.show { display:flex; animation: pop-in 220ms ease; }
 
-/* Igualar altura visual del badge de clientes al botón de filtros */
+
 #clientCount {
   display: inline-flex;
   align-items: center;
-  height: 36px; /* similar a .btn-secondary en header */
+  height: 40px;
+  padding: 0 0.8rem;
+  border-radius: 0.5rem;
+}
+
+/* Uniformizar altura y apariencia de los controles en la cabecera de la sección
+   (Botón Filtros, bloque Mostrar (pageSize) y botón Estudiantes) */
+.clients-header-actions > * {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  gap: 0.5rem;
+}
+.clients-header-actions > .btn,
+.clients-header-actions > #btnFilters,
+.clients-header-actions > #clientCount,
+.clients-header-actions > #pageSizeLabel {
+  height: 40px;
+  padding: 0 0.9rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+.clients-header-actions > #pageSizeLabel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   padding: 0 0.6rem;
-  border-radius: 0.35rem;
+}
+.clients-header-actions > #pageSizeLabel select {
+  height: 28px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--text-primary);
+}
+.clients-header-actions > #clientCount {
+  padding: 0 0.8rem;
 }
 
 @keyframes pop-in { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
 
-/* Smooth transitions for client-cards (FLIP fallback) */
+
 .client-card { will-change: transform, opacity }
 
-/* Tooltip para .turno-attention (visual + accesible) */
+
 .turno-selector.turno-attention {
   position: relative;
   border-color: var(--yellow-primary) !important;
@@ -1592,7 +2138,7 @@ body {
   box-shadow: 0 6px 18px rgba(2,6,23,0.6);
   border: 1px solid var(--yellow-primary);
   z-index: 2000;
-  opacity: 1; /* visible por defecto */
+  opacity: 1;
   pointer-events: auto;
   transition: transform 0.12s;
 }
@@ -1601,14 +2147,14 @@ body {
 .turno-selector.turno-attention:focus-within::after {
   transform: translateX(-50%) translateY(0);
 }
-/* Adaptación del tooltip de atención para tema claro */
+
 :root[data-theme="light"] .turno-selector.turno-attention {
-  /* resaltar el selector con un amarillo más visible en tema claro */
+ 
   border-color: rgba(245,158,11,0.9) !important;
 }
 :root[data-theme="light"] .turno-selector.turno-attention::after {
   background: rgba(255,255,255,0.98);
-  color: var(--text-primary); /* en tema claro var(--text-primary) será oscuro */
+  color: var(--text-primary);
   border: 1px solid rgba(245,158,11,0.18);
   box-shadow: 0 8px 24px rgba(16,24,40,0.06);
 }
@@ -1725,7 +2271,7 @@ body {
 }
 
 .card {
-  background-color: #0f172a; /* ligeramente más oscuro para contraste */
+  background-color: #0f172a;
   border-color: rgba(255,255,255,0.03);
 }
 
@@ -1754,7 +2300,7 @@ body {
   align-items: center;
   gap: 0.75rem;
   background-color: var(--bg-card);
-  padding: 0.3rem 0.6rem; /* ajustar padding para igualar altura */
+  padding: 0.3rem 0.6rem;
   border-radius: 0.5rem;
   border: 1px solid var(--border-color);
 }
@@ -1768,7 +2314,7 @@ body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 0.45rem 0.85rem; /* similar a los botones */
+  padding: 0.45rem 0.85rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   cursor: pointer;
@@ -1777,7 +2323,7 @@ body {
 .header-control {
   display: inline-flex;
   align-items: center;
-  height: 40px; /* altura objetivo para botones y select */
+  height: 40px;
 }
 
 .icon-btn {
@@ -2085,10 +2631,10 @@ body {
   font-weight: 500;
 }
 
-/* Resaltar Instituto y Número de Orden en la tarjeta del cliente */
+
 .client-institute {
   background-color: rgba(59,130,246,0.06);
-  color: #93c5fd; /* azul claro */
+  color: #93c5fd;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
   font-weight: 700;
@@ -2098,7 +2644,7 @@ body {
 
 .client-order {
   background-color: rgba(16,185,129,0.06);
-  color: #86efac; /* verde claro */
+  color: #86efac;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
   font-weight: 700;
@@ -2106,8 +2652,8 @@ body {
   display: inline-block;
 }
 
-/* Botón pequeño para copiar datos (DNI) */
-/* (Se removió el botón 'Copiar DNI' - reglas eliminadas) */
+
+
 
 .beca-badge {
   display: inline-block;
@@ -2397,7 +2943,7 @@ body {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    max-width: 1100px; /* más ancho en desktop */
+    max-width: 1100px;
   }
 
   #statsModal .stats-content {
@@ -2409,7 +2955,7 @@ body {
   }
 
   #statsModal .modal-content > .modal-header {
-    display: none; /* ocultamos header duplicado en disposición horizontal */
+    display: none;
   }
 
   #statsModal .modal-content .stats-side {
@@ -2527,7 +3073,7 @@ body {
   100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.12); }
 }
 
-/* Scrollbar personalizado */
+
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -2543,4 +3089,39 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--bg-hover);
+}
+
+.site-footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+  padding: 6px 0 18px;
+  pointer-events: none;
+}
+
+.footer-watermark {
+  font-size: 12px;
+  color: var(--text-secondary, rgba(255,255,255,0.75));
+  opacity: 0.28;
+  background: transparent;
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.2px;
+  text-align: center;
+  box-shadow: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 480px) {
+  .footer-watermark {
+    font-size: 11px;
+    opacity: 0.22;
+    padding: 3px 6px;
+  }
+}
+
+@media print {
+  .site-footer { display: none !important }
 }

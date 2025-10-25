@@ -20,7 +20,6 @@ if (firebaseConfig && firebaseConfig.apiKey) {
       const { getDatabase, ref, set, remove, onChildAdded, onChildChanged, onChildRemoved, get, onValue, push, update, child } = rtdbModule
       const db = getDatabase(app)
 
-      // Exponer una API ligera para la app basada en Realtime Database
       window.AppFirebase = { db, ref, set, remove, onChildAdded, onChildChanged, onChildRemoved, get, onValue, push, update, child }
       console.log('Firebase Realtime Database inicializado — AppFirebase disponible')
 
@@ -45,6 +44,44 @@ const BECA_LIMITS = {
   C: 460,
 }
 
+const MAX_CARILLAS_PER_IMPRESION = 10000
+
+function getPricePerCarilla() {
+  try {
+    const raw = localStorage.getItem('precioCarilla')
+    const v = raw !== null ? Number(raw) : NaN
+    if (!isFinite(v) || v <= 0) return 40
+    return v
+  } catch (e) { return 40 }
+}
+
+function setPricePerCarilla(value) {
+  try {
+    const v = Number(value) || 0
+    localStorage.setItem('precioCarilla', String(v))
+    const btn = document.getElementById('btnPrice')
+    if (btn) btn.title = `Precio por carilla: $${v}`
+    showToast('Precio por carilla guardado: $' + v, 'success')
+    return true
+  } catch (e) {
+    console.error('setPricePerCarilla error', e)
+    return false
+  }
+}
+
+function formatCurrency(amount) {
+  try {
+    const n = Number(amount) || 0
+    return '$' + n.toLocaleString('es-AR')
+  } catch (e) { return '$' + (amount || 0) }
+}
+
+function openPriceModal() {
+  const input = document.getElementById('pricePerCarilla')
+  if (input) input.value = getPricePerCarilla()
+  openModal('priceModal')
+}
+
 let clients = []
 let impresiones = []
 let currentFilters = {}
@@ -52,12 +89,9 @@ let currentTurno = "Mañana"
 let clientToDelete = null
 let currentHistorialClientId = null
 let _firstRenderDone = false
-// Paginación
 let currentPage = 1
-let pageSize = 6 // default
-// bandera interna para indicar que el próximo render viene de una paginación
+let pageSize = 6
 let __justPaginated = false
-// Cuando hay muchos clientes, por defecto solo renderizamos los primeros N para ahorrar recursos
 let showAllClients = false
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -71,7 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTurnoTimers()
     startDigitalClock()
   
-    // Wire UI for download clients modal button (Deploy handler and fallback)
     async function runDownloadClientsHandler(e) {
       try {
         if (e && typeof e.preventDefault === 'function') e.preventDefault()
@@ -95,7 +128,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const sanitize = s => (s || '').toString().trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-()]/g, '')
         const instPart = sanitize(instituto || (clientsForDownload[0] && clientsForDownload[0].instituto) || 'Todos')
         const tipoPart = sanitize(tipoBeca || (clientsForDownload[0] && clientsForDownload[0].tipoBeca) || 'Todos')
-    // Nombre de archivo solicitado
     a.download = `Base de datos - Beca de apuntes 2025.pdf`
         document.body.appendChild(a)
         a.click()
@@ -125,26 +157,20 @@ document.addEventListener("DOMContentLoaded", () => {
         console.warn('Error en listener delegado de btnDownloadClients', e)
       }
     })
-    // Exponer handler para depuración manual desde consola
     try { window.runDownloadClientsHandler = runDownloadClientsHandler } catch (e) {}
 })
 
-// Forzar ir arriba al recargar la página (asegura UX consistente)
 window.addEventListener('load', () => {
   try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) } catch (e) { window.scrollTo(0,0) }
 })
 
-// Cargar jsPDF dinámicamente
 async function ensureJsPDF() {
-  // Si ya fue cargado y normalizado, devolverlo
   if (window.jspdf && (window.jspdf.jsPDF)) {
     return window.jspdf
   }
 
-  // Intento 1: import dinámico (ESM) desde CDN
   try {
     const mod = await import('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
-    // Normalizar posibles formas de exportación
     let jsPDFctor = null
     if (mod) {
       if (mod.jspdf && (mod.jspdf.jsPDF || (mod.jspdf.default && mod.jspdf.default.jsPDF))) {
@@ -156,7 +182,6 @@ async function ensureJsPDF() {
       }
     }
 
-    // Si esto devolvió algo utilizable, normalizamos y retornamos
     if (jsPDFctor && (typeof jsPDFctor === 'function' || typeof jsPDFctor === 'object')) {
       window.jspdf = { jsPDF: jsPDFctor }
       console.debug('ensureJsPDF: cargado vía import dinámico y normalizado', window.jspdf)
@@ -168,13 +193,10 @@ async function ensureJsPDF() {
     console.warn('ensureJsPDF: import dinámico falló, intentando fallback por <script>:', err)
   }
 
-  // Fallback: cargar la versión UMD como <script> desde varios CDNs y esperar a que exponga window.jspdf/jsPDF
   const loadScript = (src) => new Promise((resolve, reject) => {
     try {
-      // Si ya existe un script con esta src, no lo volvemos a agregar
       const existing = Array.from(document.getElementsByTagName('script')).find(s => s.src && s.src.indexOf(src) !== -1)
       if (existing) {
-        // si ya está cargado, resolvemos inmediatamente en next tick
         return resolve()
       }
       const s = document.createElement('script')
@@ -197,7 +219,6 @@ async function ensureJsPDF() {
   for (const src of cdns) {
     try {
       await loadScript(src)
-      // comprobar exposición global
       let ctor = null
       if (window.jspdf && (window.jspdf.jsPDF || (window.jspdf.default && window.jspdf.default.jsPDF))) {
         ctor = window.jspdf.jsPDF || (window.jspdf.default && window.jspdf.default.jsPDF)
@@ -214,19 +235,15 @@ async function ensureJsPDF() {
       }
     } catch (err) {
       console.warn('ensureJsPDF: intento fallido con CDN', src, err)
-      // continuar con siguiente CDN
     }
   }
 
-  // Si llegamos aquí, no pudimos localizar el constructor
   const err = new Error('No se pudo localizar el constructor jsPDF tras intentar import y fallback por CDN')
   console.error('ensureJsPDF:', err)
   throw err
 }
 
-// Genera PDF con una página por cliente con formato de libro
 async function generateBookPDF(options = { all: true, clientIds: [] }) {
-  // Normalizar opciones y valores por defecto para evitar usos de propiedades undefined
   options = Object.assign({ all: true, clientIds: [] }, options || {})
   if (!Array.isArray(options.clientIds)) options.clientIds = []
 
@@ -236,21 +253,15 @@ async function generateBookPDF(options = { all: true, clientIds: [] }) {
   const createDoc = () => new jsPDF({ unit: 'mm', format: 'a4' })
   const doc = createDoc()
 
-  // Seleccionar clientes:
-  // - Si options.all === true -> todos
-  // - Si clientIds provisto y no vacío -> filtrar por esos ids
-  // - Si options.all === false y no hay clientIds -> partir de todos y aplicar luego filtros (instituto/tipo)
   let selectedClients = []
   if (options.all) {
     selectedClients = [...clients]
   } else if (Array.isArray(options.clientIds) && options.clientIds.length > 0) {
     selectedClients = clients.filter(c => options.clientIds.includes(c.id))
   } else {
-    // no se pasó clientIds, pero se indicó all=false -> asumimos que el usuario quiere filtrar por instituto/tipo
     selectedClients = [...clients]
   }
 
-  // Aplicar filtros adicionales si se pasan (instituto + tipoBeca)
   if (options.instituto) selectedClients = selectedClients.filter(c => (c.instituto || '').toString() === options.instituto)
   if (options.tipoBeca) selectedClients = selectedClients.filter(c => (c.tipoBeca || '').toString().toUpperCase() === (options.tipoBeca || '').toString().toUpperCase())
 
@@ -259,7 +270,6 @@ async function generateBookPDF(options = { all: true, clientIds: [] }) {
   selectedClients.forEach((c, idx) => {
   if (idx !== 0) doc.addPage()
 
-  // Encabezado (formato libro similar al impreso)
   doc.setFontSize(13)
   doc.setTextColor(30)
   const headerTitle = `BECA DE APUNTES ${options.instituto || ''}`.trim()
@@ -272,18 +282,16 @@ async function generateBookPDF(options = { all: true, clientIds: [] }) {
   doc.text(`Tipo: ${c.tipoBeca || '-'}`, 140, 36)
   doc.text(`Instituto: ${c.instituto || (options.instituto || '-')}`, 14, 44)
 
-    // Línea separadora
     doc.setDrawColor(200)
     doc.setLineWidth(0.5)
     doc.line(14, 48, 196, 48)
 
-    // Tabla de anotaciones: dejamos 12 filas con columnas Fecha / Monto / Material / Atendido por / Firma
     const startY = 54
     const rowHeight = 8
     const cols = [14, 36, 72, 120, 160]
     doc.setFontSize(10)
     doc.setTextColor(60)
-    // Headers
+
     doc.text('FECHA', cols[0], startY - 2)
     doc.text('MONTO', cols[1], startY - 2)
     doc.text('MATERIAL', cols[2], startY - 2)
@@ -295,18 +303,15 @@ async function generateBookPDF(options = { all: true, clientIds: [] }) {
       doc.line(14, y + 2, 196, y + 2)
     }
 
-    // Pie con número de página / fecha
     doc.setFontSize(9)
     doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 287)
     doc.text(`${idx + 1} / ${selectedClients.length}`, 180, 287)
   })
 
-  // Descargar
   const blob = doc.output('blob')
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  // Nombre solicitado: "Libro de becas (instituto)(tipo)"
   const sanitize = s => (s || '').toString().trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-()]/g, '')
   const instPart = sanitize(options.instituto || (selectedClients[0] && selectedClients[0].instituto) || 'Todos')
   const tipoPart = sanitize(options.tipoBeca || (selectedClients[0] && selectedClients[0].tipoBeca) || 'Todos')
@@ -317,17 +322,13 @@ async function generateBookPDF(options = { all: true, clientIds: [] }) {
   URL.revokeObjectURL(url)
 }
 
-// Genera y devuelve Blob de PDF para un conjunto de clientes con un nombre de archivo sugerido
 async function createBookPdfBlob({ instituto = null, tipoBeca = null, clientsForBook = [] }) {
   const jspdfModule = await ensureJsPDF()
   const jsPDF = jspdfModule.jsPDF || jspdfModule
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
 
-  // Si no hay clientesForBook asumimos que clientsForBook fue calculado en caller
   const selectedClients = Array.isArray(clientsForBook) ? clientsForBook : []
 
-  // Caratula en la primera página
-  // Diseño centrado y grande
   doc.setDrawColor(0)
   doc.setFillColor(255,255,255)
   doc.setFontSize(22)
@@ -337,51 +338,42 @@ async function createBookPdfBlob({ instituto = null, tipoBeca = null, clientsFor
   doc.text(title, 105, 80, { align: 'center' })
   doc.setFontSize(18)
   doc.text('Beca de apuntes 2025', 105, 110, { align: 'center' })
-  // agregar un separador decorativo
   doc.setLineWidth(0.8)
   doc.line(40, 130, 170, 130)
 
-  // Si no hay clients, devolvemos la caratula
   if (!selectedClients || selectedClients.length === 0) {
     return doc.output('blob')
   }
 
-  // Para cada cliente, nueva página con datos y tabla que ocupa el espacio restante
   selectedClients.forEach((c, idx) => {
-    // agregar página si no es la primera (caratula)
     if (idx === 0) {
       doc.addPage()
     } else {
       doc.addPage()
     }
 
-  // Encabezado con datos (etiquetas en negrita) — medir etiquetas para evitar espacios extra
   doc.setFontSize(13)
   doc.setTextColor(30)
 
   const labelGap = 4
-  // Nombre
   doc.setFont(undefined, 'bold')
   const nameLabel = 'Nombre:'
   doc.text(nameLabel, 14, 24)
   doc.setFont(undefined, 'normal')
   doc.text(`${c.nombreApellido}`, 14 + doc.getTextWidth(nameLabel) + labelGap, 24)
 
-  // DNI
   doc.setFont(undefined, 'bold')
   const dniLabel = 'DNI:'
   doc.text(dniLabel, 14, 34)
   doc.setFont(undefined, 'normal')
   doc.text(`${c.dni}`, 14 + doc.getTextWidth(dniLabel) + labelGap, 34)
 
-  // Carrera
   doc.setFont(undefined, 'bold')
   const carreraLabel = 'Carrera:'
   doc.text(carreraLabel, 14, 44)
   doc.setFont(undefined, 'normal')
   doc.text(`${c.carrera || '-'}`, 14 + doc.getTextWidth(carreraLabel) + labelGap, 44)
 
-  // Tipo de Beca (alineado a la derecha como antes)
   doc.setFont(undefined, 'bold')
   const tipoLabel = 'Tipo:'
   const tipoX = 140
@@ -389,36 +381,28 @@ async function createBookPdfBlob({ instituto = null, tipoBeca = null, clientsFor
   doc.setFont(undefined, 'normal')
   doc.text(`${c.tipoBeca || '-'}`, tipoX + doc.getTextWidth(tipoLabel) + labelGap, 24)
 
-  // Línea separadora
   doc.setDrawColor(200)
   doc.setLineWidth(0.5)
   doc.line(14, 52, 196, 52)
 
-  // Tabla que ocupa el espacio restante (desde y=58 hasta y=280 aprox)
   const startY = 58
     const endY = 280
-    // usar filas ligeramente más pequeñas para que quepan más
     const rowHeight = 9
-    // columnas: x positions (ajustadas para sumar ~182mm ancho printable)
     const colX = [14, 44, 74, 114, 154]
     const tableRight = 196
     const tableWidth = tableRight - colX[0]
 
-    // Dibujar borde exterior de la tabla (ajustado para que no quede una línea por encima de los encabezados)
     doc.setDrawColor(0)
     doc.setLineWidth(0.5)
     const rectY = startY - 2
     doc.rect(colX[0], rectY, tableWidth, endY - rectY)
 
-    // Dibujar líneas verticales (columnas)
     for (let i = 0; i < colX.length; i++) {
       const x = colX[i]
       doc.line(x, rectY, x, endY)
     }
-    // dibujar la línea final en la derecha
     doc.line(tableRight, rectY, tableRight, endY)
 
-    // Cabecera: fondo ligero y texto en negrita centrado por columna
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     const headers = ['Fecha', 'Monto', 'Material', 'Atendido por', 'Firma']
@@ -427,20 +411,16 @@ async function createBookPdfBlob({ instituto = null, tipoBeca = null, clientsFor
       const nextX = (i < colX.length - 1) ? colX[i + 1] : tableRight
       const w = nextX - x
       const cx = x + w / 2
-      // encabezado centrado verticalmente en la celda de cabecera
       doc.text(headers[i], cx, startY + 3, { align: 'center' })
     }
 
-    // Dibujar filas horizontales hasta llenar la página
     doc.setFont('helvetica', 'normal')
     let y = startY
     while (y + rowHeight <= endY) {
-      // dibujar línea horizontal completa
       doc.line(colX[0], y + rowHeight - 2, tableRight, y + rowHeight - 2)
       y += rowHeight
     }
 
-  // Mostrar Numero de orden debajo de 'Tipo' (alineado con Tipo)
   doc.setFontSize(10)
   doc.setFont(undefined, 'normal')
   const orderLabel = 'Numero de orden:'
@@ -456,7 +436,6 @@ async function createBookPdfBlob({ instituto = null, tipoBeca = null, clientsFor
   return doc.output('blob')
 }
 
-// Crea un PDF tipo lista/tabla con la base de clientes filtrada y devuelve Blob
 async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clientsList = [] }) {
   const jspdfModule = await ensureJsPDF()
   const jsPDF = jspdfModule.jsPDF || jspdfModule
@@ -467,14 +446,12 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
   const usableWidth = pageWidth - margin * 2
   let y = 20
 
-  // Título principal (exacto)
   doc.setFontSize(18)
   doc.setFont(undefined, 'bold')
   const mainTitle = 'Base de datos - Beca de apuntes 2025'
   doc.text(mainTitle, pageWidth / 2, y, { align: 'center' })
   y += 10
 
-  // Resumen estadístico arriba
   const total = clientsList.length
   const byInstitute = { Salud: 0, Sociales: 0, Ingeniería: 0 }
   const byTipo = { A: 0, B: 0, C: 0 }
@@ -493,23 +470,18 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
   doc.text(`Por tipo de beca: A ${byTipo.A} — B ${byTipo.B} — C ${byTipo.C}`, margin, y)
   y += 12
 
-  // Preparar orden y agrupación por instituto
   const institutosOrden = ['Salud', 'Sociales', 'Ingeniería']
-  // columnas: Nombre | DNI | Carrera | Tipo | N° Orden
   const colPercents = [0.38, 0.16, 0.28, 0.08, 0.10]
   const cols = colPercents.map(p => Math.floor(p * usableWidth))
-  // base mínima de fila (mm). Las filas crecerán si el texto envuelto ocupa más líneas
   const baseRowHeight = 8
-  const lineHeight = 4.2 // aproximado en mm por línea (ajustable)
+  const lineHeight = 4.2
 
-  // Helpers para pintar cabecera de instituto (color por instrucción)
   const instituteHeaderColor = (inst) => {
-    if (inst === 'Salud') return [255, 204, 0] // amarillo
-    if (inst === 'Sociales') return [153, 204, 255] // celeste
-    if (inst === 'Ingeniería') return [220, 53, 69] // rojo
+    if (inst === 'Salud') return [255, 204, 0]
+    if (inst === 'Sociales') return [153, 204, 255] 
+    if (inst === 'Ingeniería') return [220, 53, 69] 
     return [240,240,240]
   }
-  // calculamos posiciones X de cada columna a partir de los anchos
   const colWidths = cols
   const colX = []
   colX[0] = margin
@@ -519,7 +491,6 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
   const tableRight = margin + colWidths.reduce((s, v) => s + v, 0)
 
   const renderTableHeader = (inst) => {
-    // cabecera coloreada con título del instituto
     const headerBarHeight = 10
     const [r,g,b] = instituteHeaderColor(inst)
     doc.setFillColor(r,g,b)
@@ -530,7 +501,6 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
     doc.text(inst, margin + 2, y)
     y += headerBarHeight + 4
 
-    // fila de encabezados de la tabla (con fondo claro)
     const headerHeight = 9
     doc.setFillColor(245,245,245)
     doc.rect(margin, y - 2, usableWidth, headerHeight, 'F')
@@ -540,16 +510,12 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
     for (let i = 0; i < headers.length; i++) {
       const x = colX[i]
       const w = colWidths[i]
-      // centrar horizontalmente el encabezado dentro de la celda
       doc.text(headers[i], x + w / 2, y + headerHeight / 2 + 1, { align: 'center' })
-      // dibujar líneas verticales
       doc.setDrawColor(180)
       doc.setLineWidth(0.4)
       doc.line(x, y - 2, x, y - 2 + Math.max(headerHeight, baseRowHeight))
     }
-    // línea final derecha
     doc.line(tableRight, y - 2, tableRight, y - 2 + Math.max(headerHeight, baseRowHeight))
-    // línea inferior de encabezado
     doc.setDrawColor(160)
     doc.setLineWidth(0.5)
     doc.line(margin, y - 2 + headerHeight, tableRight, y - 2 + headerHeight)
@@ -563,12 +529,10 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
   let page = 1
 
   for (const inst of institutosOrden) {
-    // si se pasó un filtro de instituto, saltar los otros
     if (instituto && instituto !== inst) continue
 
     const items = clientsList
       .filter(c => (c.instituto || '') === inst)
-      // ordenar por tipo A then B then C, y dentro por numeroOrden asc
       .sort((a,b) => {
         const ta = (a.tipoBeca||'').toString().toUpperCase()
         const tb = (b.tipoBeca||'').toString().toUpperCase()
@@ -580,9 +544,7 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
 
     if (!items || items.length === 0) continue
 
-    // Añadir un pequeño espacio antes de la tabla si no hay suficiente espacio en la página
     if (y + 60 > 287) {
-      // pie antes de cambiar de página
       doc.setFontSize(9)
       doc.text(`Generado: ${new Date().toLocaleDateString()}`, margin, 287)
       doc.text(`Página ${page}`, pageWidth - margin, 287, { align: 'right' })
@@ -594,7 +556,6 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
     renderTableHeader(inst)
 
     for (const c of items) {
-      // Preparar textos de cada celda y calcular altura necesaria
       const values = [c.nombreApellido || '-', c.dni || '-', c.carrera || '-', (c.tipoBeca||'-'), (c.numeroOrden||'')]
       const wrappedCols = []
       let maxLines = 0
@@ -606,9 +567,8 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
         if (wrapped.length > maxLines) maxLines = wrapped.length
       }
 
-      const neededHeight = Math.max(baseRowHeight, Math.ceil(maxLines * lineHeight)) + 4 // padding
+      const neededHeight = Math.max(baseRowHeight, Math.ceil(maxLines * lineHeight)) + 4 
 
-      // Salto de página si no hay espacio suficiente
       if (y + neededHeight > bottomLimit) {
         doc.setFontSize(9)
         doc.text(`Generado: ${new Date().toLocaleDateString()}`, margin, bottomLimit)
@@ -619,17 +579,14 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
         renderTableHeader(inst)
       }
 
-      // Dibujar bordes de las celdas (grid)
       doc.setDrawColor(170)
       doc.setLineWidth(0.35)
       for (let j = 0; j < colWidths.length; j++) {
         const x = colX[j]
         const w = colWidths[j]
-        // rect para la celda (sin relleno)
         doc.rect(x, y - 2, w, neededHeight)
       }
 
-      // Dibujar texto en cada celda (con padding)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       for (let j = 0; j < wrappedCols.length; j++) {
@@ -638,7 +595,6 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
         const lines = wrappedCols[j]
         const textX = x + 2
         const textY = y + 3
-        // doc.text acepta array para múltiples líneas
         doc.text(lines, textX, textY)
       }
 
@@ -648,30 +604,22 @@ async function createClientsPdfBlob({ instituto = null, tipoBeca = null, clients
     y += 6
   }
 
-  // pie final
   doc.setFontSize(9)
   doc.text(`Generado: ${new Date().toLocaleDateString()}`, margin, 287)
   doc.text(`Página ${page}`, pageWidth - margin, 287, { align: 'right' })
 
-  // Aseguramos retorno del blob
   return doc.output('blob')
 }
 
-// Gera un ZIP con los 9 libros (combinaciones) y devuelve Blob del ZIP
 async function generateAllBooksZip() {
-  // cargar JSZip dinámicamente (import dinámico o fallback por <script>)
-  // Normalizar la exportación para obtener el constructor (puede venir como default o JSZip)
   if (!window.JSZip) {
     try {
       const mod = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')
-      // mod puede ser el constructor, o { default: constructor }, o { JSZip: constructor }
       let ctor = mod && (mod.default || mod.JSZip || mod)
-      // si todavía no es constructor, intentar tomar mod.default
       if (ctor && ctor.default) ctor = ctor.default
       window.JSZip = ctor
     } catch (err) {
       console.warn('generateAllBooksZip: import dinámico JSZip falló, intentando fallback por <script>', err)
-      // fallback por <script>
       const loadScript = (src) => new Promise((resolve, reject) => {
         try {
           const existing = Array.from(document.getElementsByTagName('script')).find(s => s.src && s.src.indexOf(src) !== -1)
@@ -695,13 +643,10 @@ async function generateAllBooksZip() {
       for (const src of cdns) {
         try {
           await loadScript(src)
-          // comprobar exposición global
           if (window.JSZip) { loaded = true; break }
           if (window.jszip) { window.JSZip = window.jszip; loaded = true; break }
           if (window.JSZip === undefined && (window.JSZip || window.JSZip === null)) {
-            // nothing
           }
-          // algunos UMD exponen JSZip en window.JSZip o window.JSZip
           if (window.JSZip) { loaded = true; break }
         } catch (err) {
           console.warn('generateAllBooksZip: intento fallido con CDN', src, err)
@@ -716,7 +661,6 @@ async function generateAllBooksZip() {
     }
   }
 
-  // Normalizar el constructor final (window.JSZip puede ser módulo o tener propiedades)
   let JSZipCtor = window.JSZip
   if (JSZipCtor && JSZipCtor.default) JSZipCtor = JSZipCtor.default
   if (JSZipCtor && JSZipCtor.JSZip) JSZipCtor = JSZipCtor.JSZip
@@ -743,9 +687,7 @@ async function generateAllBooksZip() {
   return zip.generateAsync({ type: 'blob' })
 }
 
-// Wire UI generate book button
 document.addEventListener('DOMContentLoaded', () => {
-  // extraer handler a función nombrada para poder reusar y depurar fácilmente
   async function runGenerateBookHandler(e) {
     try {
       if (e && typeof e.preventDefault === 'function') e.preventDefault()
@@ -778,7 +720,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return
       }
 
-      // determinar clientes por filtros
       const all = (!instituto && !tipoBeca)
       let clientsForBook = []
       if (all) {
@@ -795,7 +736,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return
       }
 
-      // generar blob y forzar descarga
       const blob = await createBookPdfBlob({ instituto: instituto || null, tipoBeca: tipoBeca || null, clientsForBook })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -816,29 +756,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // intentar binding directo (normal)
   const btn = document.getElementById('btnGenerateBook')
   if (btn) {
     btn.addEventListener('click', runGenerateBookHandler)
   } else {
     console.debug('btnGenerateBook no encontrado al inicializar el listener; se agrega listener delegado como fallback')
+
+    document.addEventListener('click', (ev) => {
+      try {
+        const target = ev.target || ev.srcElement
+        const btnEl = target && typeof target.closest === 'function' ? target.closest('#btnGenerateBook') : null
+        if (btnEl) runGenerateBookHandler(ev)
+      } catch (e) {
+        console.warn('Error en listener delegado de btnGenerateBook', e)
+      }
+    })
   }
 
-  // Fallback: listener delegado para capturar clicks aunque el binding directo no se haya aplicado
-  document.addEventListener('click', (ev) => {
-    try {
-      const target = ev.target || ev.srcElement
-      const btnEl = target && typeof target.closest === 'function' ? target.closest('#btnGenerateBook') : null
-      if (btnEl) runGenerateBookHandler(ev)
-    } catch (e) {
-      console.warn('Error en listener delegado de btnGenerateBook', e)
-    }
-  })
-  // Exponer para depuración manual desde consola
   try { window.runGenerateBookHandler = runGenerateBookHandler } catch (e) {}
 })
 
-// THEME TOGGLE: alternar entre tema oscuro y claro
 function applyTheme(theme) {
   const root = document.documentElement
   if (theme === 'light') {
@@ -846,7 +783,6 @@ function applyTheme(theme) {
     localStorage.setItem('theme', 'light')
     const toggle = document.getElementById('btnThemeToggle')
     if (toggle) toggle.setAttribute('aria-pressed', 'true')
-    // show sun icon, hide moon
     const sun = document.querySelector('.icon-sun')
     const moon = document.querySelector('.icon-moon')
     if (sun) sun.style.display = ''
@@ -875,11 +811,8 @@ function initThemeToggle() {
   })
 }
 
-// Entrada animada secuencial para las primeras N tarjetas (limitado a 3)
-// Entrada animada secuencial para las primeras N tarjetas (limitado a 6 por defecto)
 function animateInitialCards(limit = 6) {
   const clientsList = document.getElementById('clientsList')
-  // animar también la search-card
   const searchCard = document.querySelector('.search-card')
   if (searchCard) {
     searchCard.style.opacity = '0'
@@ -900,7 +833,6 @@ function animateInitialCards(limit = 6) {
   })
 }
 
-// Helper global: generar HTML de una sola tarjeta de cliente
 function generateClientCardHtml(client) {
   const usedCarillas = getUsedCarillasThisMonth(client.id)
   const limit = BECA_LIMITS[client.tipoBeca]
@@ -963,9 +895,10 @@ function generateClientCardHtml(client) {
                     <div class="progress-bar">
                         <div class="progress-fill ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
                     </div>
-                    <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
-                        Restantes: <strong style="color: var(--text-primary);">${remaining} carillas</strong>
-                    </div>
+          <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary); display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+            <div>Restantes: <strong style="color: var(--text-primary);">${remaining} carillas</strong></div>
+            <div style="font-size:0.9rem; color:var(--text-secondary);">Equivale a: <strong style="color:var(--text-primary);">${formatCurrency(remaining * getPricePerCarilla())}</strong></div>
+          </div>
                 </div>
 
                 <div class="client-card-actions">
@@ -982,7 +915,6 @@ function generateClientCardHtml(client) {
         `
 }
 
-// Llamar initThemeToggle en DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
   initThemeToggle()
 })
@@ -1018,6 +950,100 @@ function setupEventListeners() {
     openModal('downloadModal')
   })
 
+  const importFileInput = document.getElementById('importFileInput')
+  const btnConfirmImport = document.getElementById('btnConfirmImport')
+
+  if (importFileInput) {
+    importFileInput.addEventListener('change', (e) => {
+      handleImportFileChange(e)
+    })
+  }
+
+  if (btnConfirmImport) {
+    btnConfirmImport.addEventListener('click', async (e) => {
+      try {
+        await confirmImport()
+      } catch (err) {
+        console.error('confirmImport error', err)
+        showToast('Error durante importación: ' + (err && err.message ? err.message : ''), 'error')
+      }
+    })
+  }
+
+  const btnPrice = document.getElementById('btnPrice')
+  if (btnPrice) {
+    btnPrice.addEventListener('click', () => openPriceModal())
+    try { btnPrice.title = `Precio por carilla: $${getPricePerCarilla()}` } catch (e) {}
+  }
+
+  const btnSavePrice = document.getElementById('btnSavePrice')
+  if (btnSavePrice) {
+    btnSavePrice.addEventListener('click', (e) => {
+      try {
+        const input = document.getElementById('pricePerCarilla')
+        if (!input) return
+        const val = Number(input.value) || 0
+        if (val <= 0) {
+          showToast('Ingrese un precio válido (> 0)', 'error')
+          return
+        }
+        setPricePerCarilla(val)
+        closeModal('priceModal')
+      } catch (err) { console.error('btnSavePrice click error', err) }
+    })
+  }
+
+  const institutoEl = document.getElementById('instituto')
+  const tipoBecaEl = document.getElementById('tipoBeca')
+  const autoCheckbox = document.getElementById('autoNumeroOrden')
+  const numeroInput = document.getElementById('numeroOrden')
+  const previewWrap = document.getElementById('numeroOrdenPreview')
+  const previewSuggested = document.getElementById('numeroOrdenSuggested')
+
+  async function updateNumeroPreview() {
+    try {
+      if (!previewWrap || !previewSuggested) return
+      const inst = institutoEl ? institutoEl.value : ''
+      const tipo = tipoBecaEl ? tipoBecaEl.value : ''
+      if (!inst || !tipo) {
+        previewWrap.style.display = 'none'
+        return
+      }
+      const localSuggested = computeNextNumeroOrdenLocal(inst, tipo)
+      previewSuggested.textContent = localSuggested
+      previewWrap.style.display = 'block'
+
+      if (window.AppFirebase && window.AppFirebase.db) {
+        const unique = await computeNextNumeroOrdenUnique(inst, tipo)
+        previewSuggested.textContent = unique
+        if (autoCheckbox && autoCheckbox.checked && numeroInput) {
+          numeroInput.value = unique
+        }
+      } else {
+        if (autoCheckbox && autoCheckbox.checked && numeroInput) {
+          numeroInput.value = localSuggested
+        }
+      }
+    } catch (err) {
+      console.warn('updateNumeroPreview error', err)
+    }
+  }
+
+  if (institutoEl) institutoEl.addEventListener('change', updateNumeroPreview)
+  if (tipoBecaEl) tipoBecaEl.addEventListener('change', updateNumeroPreview)
+  if (autoCheckbox) {
+    autoCheckbox.addEventListener('change', (e) => {
+      if (numeroInput) {
+        numeroInput.disabled = e.target.checked
+        if (e.target.checked) {
+          updateNumeroPreview()
+        }
+      }
+    })
+    if (autoCheckbox.checked && numeroInput) numeroInput.disabled = true
+  }
+
+
   const btnStats = document.getElementById('btnStats')
   if (btnStats) btnStats.addEventListener('click', () => openStatsModal())
   const btnRefresh = document.getElementById('btnRefresh')
@@ -1025,18 +1051,15 @@ function setupEventListeners() {
     setSyncStatus('warning')
     showToast('Iniciando sincronización con Realtime Database...', 'warning')
     try {
-      // Primero intentar empujar locales si existe la utilidad
       if (window.forcePushLocalsToRTDB) {
         await window.forcePushLocalsToRTDB()
       }
-      // Luego traer snapshot remoto y actualizar UI
       const ok = await fetchRemoteClientsOnce()
       if (ok) {
         showToast('Sincronización RTDB completada', 'success')
         setSyncStatus('online')
         return
       }
-      // Si no se pudo obtener remoto, recargar locales
       loadData()
       renderClients()
       setSyncStatus('offline')
@@ -1048,7 +1071,6 @@ function setupEventListeners() {
     }
   })
 
-  // Floating search input sync
   const floatingInput = document.getElementById('floatingSearchInput')
   const mainSearch = document.getElementById('searchInput')
   if (floatingInput && mainSearch) {
@@ -1056,17 +1078,14 @@ function setupEventListeners() {
     mainSearch.addEventListener('input', (e) => { floatingInput.value = e.target.value })
   }
 
-  // Back to top button
   const backToTop = document.getElementById('backToTop')
   if (backToTop) {
     backToTop.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }) })
   }
 
-  // Scroll handlers: show floating search when main search scrolls away, and show back-to-top
   let lastKnownScrollY = 0
   let ticking = false
   const floating = document.getElementById('floatingSearch')
-  // reuse `mainSearch` declared earlier
   window.addEventListener('scroll', () => {
     lastKnownScrollY = window.scrollY
     if (!ticking) {
@@ -1088,7 +1107,6 @@ function setupEventListeners() {
     }
   })
 
-  // when floating search is visible and user types, sync is already wired above; focus behavior:
   if (floating) {
     floating.addEventListener('click', () => {
       const fi = document.getElementById('floatingSearchInput')
@@ -1096,10 +1114,8 @@ function setupEventListeners() {
     })
   }
 
-  // Paginación: selector de tamaño de página
   const pageSizeSelect = document.getElementById('pageSizeSelect')
   if (pageSizeSelect) {
-    // inicializar con valor guardado si existe
     const saved = Number(localStorage.getItem('pageSize') || '6')
     if ([6,9,12,15,18].includes(saved)) {
       pageSize = saved
@@ -1114,7 +1130,6 @@ function setupEventListeners() {
     })
   }
 
-  // Delegado para clicks en paginación
   document.addEventListener('click', (e) => {
     try {
       const btn = e.target.closest && e.target.closest('[data-page-action]')
@@ -1130,18 +1145,14 @@ function setupEventListeners() {
       else if (action === 'goto' && pageAttr) { currentPage = Math.max(1, Number(pageAttr)) }
 
       renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : '')
-      // mantener el foco razonable
       e.preventDefault()
     } catch (err) {
-      // ignore
     }
   })
 
-  // Atajos de teclado para paginación: Ctrl + ArrowLeft / ArrowRight
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey)) return
     if (e.key === 'ArrowLeft') {
-      // ir a pagina anterior
       const newPage = Math.max(1, currentPage - 1)
       if (newPage !== currentPage) {
         currentPage = newPage
@@ -1149,13 +1160,11 @@ function setupEventListeners() {
       }
       e.preventDefault()
     } else if (e.key === 'ArrowRight') {
-      // necesitamos calcular totalPages basados en los filtros actuales
-      // replicar brevemente la lógica de filtrado para determinar totalPages
+
       let filteredLen = clients.length
       const searchInput = document.getElementById('searchInput')
       const term = searchInput ? (searchInput.value || '').toString().toLowerCase() : ''
       if (term) filteredLen = clients.filter(c => (c.nombreApellido||'').toLowerCase().includes(term) || (c.dni||'').includes(term)).length
-      // aplicar filtros de currentFilters (tipoBeca/instituto/mes/ano/turno)
       if (currentFilters && Object.keys(currentFilters).length > 0) {
         let tmp = [...clients]
         if (currentFilters.tipoBeca) tmp = tmp.filter(c => c.tipoBeca === currentFilters.tipoBeca)
@@ -1172,7 +1181,6 @@ function setupEventListeners() {
           })
           tmp = tmp.filter(c => clientsWithImpresiones.has(c.id))
         }
-        // apply search term on tmp
         if (term) tmp = tmp.filter(c => (c.nombreApellido||'').toLowerCase().includes(term) || (c.dni||'').includes(term))
         filteredLen = tmp.length
       }
@@ -1187,6 +1195,263 @@ function setupEventListeners() {
     }
   })
 }
+
+function normalizeKey(k) {
+  return (k || '').toString().toLowerCase().replace(/\s+/g, '').replace(/[_\-]/g, '').normalize('NFD').replace(/[^\w\s]/g, '').replace(/[\u0300-\u036f]/g, '')
+}
+
+function detectMapping(keys = []) {
+  const mapping = {}
+  const norm = keys.map(k => ({ raw: k, n: normalizeKey(k) }))
+
+  const findKey = (...candidates) => {
+    for (const cand of candidates) {
+      const nc = normalizeKey(cand)
+      const found = norm.find(x => x.n === nc || x.n.indexOf(nc) !== -1 || nc.indexOf(x.n) !== -1)
+      if (found) return found.raw
+    }
+    return null
+  }
+
+  mapping.nombreApellido = findKey('nombre', 'nombreapellido', 'nombre_apellido', 'nombre y apellido', 'apellido', 'nombreApellido')
+  mapping.dni = findKey('dni', 'documento', 'nrodni')
+  mapping.carrera = findKey('carrera', 'estudio', 'curso')
+  mapping.instituto = findKey('instituto', 'facultad', 'area')
+  mapping.tipoBeca = findKey('tipobeca', 'tipo', 'beca', 'tipo_beca')
+
+  return mapping
+}
+
+function mapRowToClient(row, mapping) {
+  const get = (k) => {
+    if (!k) return ''
+    return row[k] !== undefined ? row[k] : row[k.toLowerCase()] || ''
+  }
+  const nombre = get(mapping.nombreApellido) || get('nombre') || get('nombreApellido') || ''
+  const dni = (get(mapping.dni) || get('dni') || '').toString().trim()
+  const carrera = get(mapping.carrera) || ''
+  const instituto = get(mapping.instituto) || ''
+  let tipo = (get(mapping.tipoBeca) || '').toString().toUpperCase()
+  if (!['A','B','C'].includes(tipo)) tipo = tipo.charAt(0) || 'A'
+
+  return {
+    id: Date.now().toString() + Math.random().toString(36).slice(2,7),
+    nombreApellido: nombre.toString().trim(),
+    dni: dni,
+    carrera: carrera.toString().trim(),
+    instituto: instituto.toString().trim() || 'Sin Instituto',
+    tipoBeca: tipo || 'A',
+    numeroOrden: null,
+    fechaRegistro: new Date().toISOString()
+  }
+}
+
+async function handleImportFileChange(e) {
+  try {
+    const target = e && e.target ? e.target : null
+    const file = target && target.files && target.files.length ? target.files[0] : null
+    if (!file) return
+    const name = (file.name || '').toLowerCase()
+    if (name.endsWith('.csv') || file.type.indexOf('csv') !== -1) {
+      parseCsvFile(file)
+    } else if (name.endsWith('.xls') || name.endsWith('.xlsx') || file.type.indexOf('spreadsheet') !== -1) {
+      parseExcelFile(file)
+    } else {
+      parseCsvFile(file)
+    }
+  } catch (err) {
+    console.error('handleImportFileChange error', err)
+    showToast('Error leyendo archivo de importación', 'error')
+  }
+}
+
+function parseCsvFile(file) {
+  if (!window.Papa) {
+    showToast('PapaParse no está disponible', 'error')
+    return
+  }
+  document.getElementById('importReport').textContent = 'Parseando CSV...'
+  window.Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      processParsedRows(results.data || [], file.name)
+    },
+    error: function(err) {
+      console.error('PapaParse error', err)
+      showToast('Error parseando CSV: ' + (err && err.message ? err.message : ''), 'error')
+    }
+  })
+}
+
+function parseExcelFile(file) {
+  const reader = new FileReader()
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result)
+      const wb = window.XLSX.read(data, { type: 'array' })
+      const first = wb.SheetNames && wb.SheetNames.length ? wb.SheetNames[0] : null
+      if (!first) {
+        showToast('Hoja no encontrada en el archivo Excel', 'error')
+        return
+      }
+      const ws = wb.Sheets[first]
+      const json = window.XLSX.utils.sheet_to_json(ws, { defval: '' })
+      processParsedRows(json || [], file.name)
+    } catch (err) {
+      console.error('parseExcelFile error', err)
+      showToast('Error parseando Excel: ' + (err && err.message ? err.message : ''), 'error')
+    }
+  }
+  reader.onerror = function(err) {
+    console.error('FileReader error', err)
+    showToast('Error leyendo archivo Excel', 'error')
+  }
+  reader.readAsArrayBuffer(file)
+}
+
+function processParsedRows(rows, filename) {
+  const previewEl = document.getElementById('importPreview')
+  const reportEl = document.getElementById('importReport')
+  if (!Array.isArray(rows) || rows.length === 0) {
+    if (reportEl) reportEl.textContent = 'No se encontraron filas en el archivo.'
+    if (previewEl) previewEl.innerHTML = ''
+    return
+  }
+
+  const keys = Object.keys(rows[0] || {})
+  const mapping = detectMapping(keys)
+
+  const parsed = rows.map(r => mapRowToClient(r, mapping))
+
+  assignNumeroOrdenBatch(parsed)
+
+  const sample = parsed.slice(0, 12)
+  let html = '<div style="font-size:0.92rem; color:var(--text-secondary); margin-bottom:0.5rem">Archivo: ' + (filename || '') + ' — Filas detectadas: ' + parsed.length + '</div>'
+  html += '<table style="width:100%; border-collapse:collapse; font-size:0.9rem">'
+  html += '<thead><tr><th style="text-align:left; padding:6px; border-bottom:1px solid rgba(0,0,0,0.06)">Nombre</th><th style="text-align:left; padding:6px; border-bottom:1px solid rgba(0,0,0,0.06)">DNI</th><th style="text-align:left; padding:6px; border-bottom:1px solid rgba(0,0,0,0.06)">Instituto</th><th style="text-align:left; padding:6px; border-bottom:1px solid rgba(0,0,0,0.06)">Tipo</th><th style="text-align:left; padding:6px; border-bottom:1px solid rgba(0,0,0,0.06)">N° Orden</th></tr></thead>'
+  html += '<tbody>'
+  sample.forEach(s => {
+    html += `<tr><td style="padding:6px; border-bottom:1px solid rgba(0,0,0,0.04)">${escapeHtml(s.nombreApellido)}</td><td style="padding:6px; border-bottom:1px solid rgba(0,0,0,0.04)">${escapeHtml(s.dni)}</td><td style="padding:6px; border-bottom:1px solid rgba(0,0,0,0.04)">${escapeHtml(s.instituto)}</td><td style="padding:6px; border-bottom:1px solid rgba(0,0,0,0.04)">${escapeHtml(s.tipoBeca)}</td><td style="padding:6px; border-bottom:1px solid rgba(0,0,0,0.04)">${escapeHtml(s.numeroOrden)}</td></tr>`
+  })
+  html += '</tbody></table>'
+
+  if (previewEl) previewEl.innerHTML = html
+
+  const existingDnis = new Set((clients || []).map(c => (c.dni || '').toString()))
+  const duplicates = parsed.filter(p => existingDnis.has((p.dni || '').toString()))
+
+  if (reportEl) {
+    reportEl.textContent = `Listo. Filas: ${parsed.length}. Duplicados detectados (no importados si confirma): ${duplicates.length}. Revise la previsualización y confirme.`
+  }
+
+  window._lastParsedImport = { parsedClients: parsed, filename: filename }
+}
+
+function assignNumeroOrdenBatch(parsedClients = []) {
+  const groups = {}
+  clients.forEach(c => {
+    const key = `${(c.instituto||'').toString()}|${(c.tipoBeca||'').toString().toUpperCase()}`
+    const no = Number.parseInt(c.numeroOrden) || 0
+    groups[key] = Math.max(groups[key] || 0, no)
+  })
+
+  for (const p of parsedClients) {
+    const key = `${(p.instituto||'').toString()}|${(p.tipoBeca||'').toString().toUpperCase()}`
+    if (!groups[key]) groups[key] = 0
+    if (!p.numeroOrden || Number.parseInt(p.numeroOrden) <= 0) {
+      groups[key] = groups[key] + 1
+      p.numeroOrden = groups[key]
+    }
+  }
+}
+
+function computeNextNumeroOrdenLocal(instituto, tipoBeca) {
+  const keyInst = (instituto || '').toString()
+  const keyTipo = (tipoBeca || '').toString().toUpperCase()
+  let max = 0
+  for (const c of clients) {
+    if (((c.instituto || '').toString() === keyInst) && ((c.tipoBeca || '').toString().toUpperCase() === keyTipo)) {
+      const no = Number.parseInt(c.numeroOrden) || 0
+      if (no > max) max = no
+    }
+  }
+  return max + 1
+}
+
+async function computeNextNumeroOrdenUnique(instituto, tipoBeca) {
+  let candidate = computeNextNumeroOrdenLocal(instituto, tipoBeca)
+  if (!window.AppFirebase || !window.AppFirebase.db) return candidate
+  try {
+    let tries = 0
+    while (await checkOrderExistsRemote(instituto, tipoBeca, candidate) && tries < 5000) {
+      candidate++
+      tries++
+    }
+    return candidate
+  } catch (err) {
+    console.warn('computeNextNumeroOrdenUnique error, retornando local:', err)
+    return candidate
+  }
+}
+
+function escapeHtml(s) {
+  return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+
+async function confirmImport() {
+  const info = window._lastParsedImport
+  if (!info || !Array.isArray(info.parsedClients) || info.parsedClients.length === 0) {
+    showToast('No hay datos para importar. Seleccione un archivo válido primero.', 'warning')
+    return
+  }
+
+  const parsed = info.parsedClients
+  const existingDnis = new Set((clients || []).map(c => (c.dni || '').toString()))
+  const toInsert = []
+  const skipped = []
+  for (const p of parsed) {
+    if (!p.dni) {
+      skipped.push({ reason: 'sin DNI', row: p })
+      continue
+    }
+    if (existingDnis.has(p.dni.toString())) {
+      skipped.push({ reason: 'dni duplicado', row: p })
+      continue
+    }
+    toInsert.push(p)
+    existingDnis.add(p.dni.toString())
+  }
+
+  if (toInsert.length === 0) {
+    showToast('No hay filas válidas para importar (todos duplicados o inválidos)', 'warning')
+    return
+  }
+
+  for (const c of toInsert) {
+    clients.push(c)
+    try { saveClientToFirestore && saveClientToFirestore(c) } catch (e) { console.warn('saveClientToFirestore error', e) }
+  }
+  saveData()
+  renderClients()
+  closeModal('importModal')
+
+  showToast(`Importación completada. Importados: ${toInsert.length}. Omitidos: ${skipped.length}`, 'success')
+  window._lastParsedImport = null
+}
+
+function openImportModal() {
+  const previewEl = document.getElementById('importPreview')
+  const reportEl = document.getElementById('importReport')
+  const fileEl = document.getElementById('importFileInput')
+  if (previewEl) previewEl.innerHTML = ''
+  if (reportEl) reportEl.textContent = ''
+  if (fileEl) fileEl.value = ''
+  window._lastParsedImport = null
+  openModal('importModal')
+}
+
+/* ------------------------- FIN IMPORTADOR ------------------------- */
 
 function loadData() {
   const savedClients = localStorage.getItem("becaClients")
@@ -1209,7 +1474,6 @@ async function setupFirebaseSync() {
     const clientsRef = ref(db, 'clients')
     const impresionesRef = ref(db, 'impresiones')
 
-    // Inicial: si no hay datos remotos pero hay locales, subirlos
     try {
       const snapClients = await get(clientsRef)
       const remoteClients = snapClients.exists() ? snapClients.val() : null
@@ -1230,13 +1494,11 @@ async function setupFirebaseSync() {
         console.log(`RTDB: subida finalizada. exitosos=${pushed} errores=${pushErrors}`)
         if (pushErrors > 0) showToast(`Algunos clientes no pudieron subirse a RTDB (ver consola)`, 'warning')
       } else if (remoteClients && Object.keys(remoteClients).length > 0 && clients.length === 0) {
-        // poblar locales con remotos
         clients = Object.keys(remoteClients).map(k => ({ id: k, ...remoteClients[k] }))
         localStorage.setItem('becaClients', JSON.stringify(clients))
       }
     } catch (err) {
       console.warn('Error comprobando clientes remotos RTDB inicial', err)
-      // Mostrar mensaje para ayudar a diagnosticar problemas de permisos
       console.warn('Asegúrate en Firebase Console > Realtime Database > Rules que permite lectura/escritura desde cliente durante pruebas. Ejemplo temporal: {"rules": {".read": true, ".write": true}}')
     }
 
@@ -1267,7 +1529,6 @@ async function setupFirebaseSync() {
       console.warn('Error comprobando impresiones remotas RTDB inicial', err)
     }
 
-    // Listeners: actualizar locales cuando cambian remotos (onValue escucha la rama completa)
     onValue(clientsRef, (snapshot) => {
       const val = snapshot.exists() ? snapshot.val() : null
       if (!val) return
@@ -1299,7 +1560,6 @@ async function setupFirebaseSync() {
   }
 }
 
-// Utilidad para forzar subir locales a RTDB desde consola: window.forcePushLocalsToRTDB()
 window.forcePushLocalsToRTDB = async function() {
   if (!window.AppFirebase || !window.AppFirebase.db) { console.warn('RTDB no inicializado'); return }
   const { db, ref, set, get } = window.AppFirebase
@@ -1317,7 +1577,6 @@ window.forcePushLocalsToRTDB = async function() {
   } catch (e) { console.error('forcePushLocalsToRTDB error', e); showToast('Error subiendo locales (ver consola)', 'error') }
 }
 
-// Trae una snapshot puntual de la colección 'clients' desde Firestore
 async function fetchRemoteClientsOnce() {
   if (!window.AppFirebase || !window.AppFirebase.db) return false
   try {
@@ -1361,7 +1620,6 @@ function setSyncStatus(state) {
 }
 
 async function saveClientToFirestore(client) {
-  // Ahora escribe en Realtime Database bajo /clients/{id}
   if (!window.AppFirebase || !window.AppFirebase.db) {
     console.log('saveClientToFirestore (RTDB): Firebase no disponible, skip')
     return
@@ -1375,7 +1633,6 @@ async function saveClientToFirestore(client) {
   }
 }
 
-// Comprueba si un DNI ya existe en Firestore (excluyendo opcionalmente un id dado)
 async function checkDniExistsRemote(dni, excludeId = null) {
   if (!window.AppFirebase || !window.AppFirebase.db) return false
   try {
@@ -1394,12 +1651,10 @@ async function checkDniExistsRemote(dni, excludeId = null) {
   }
 }
 
-// Normaliza strings para comparar (trim)
 function normalizeStr(s) {
   return (s || '').toString().trim()
 }
 
-// Comprueba localmente si ya existe número de orden en el mismo 'libro' (instituto + tipoBeca)
 function isOrderConflictLocal(instituto, tipoBeca, numeroOrden, excludeId = null) {
   const ni = normalizeStr(instituto)
   const tb = (tipoBeca || '').toString().toUpperCase()
@@ -1410,7 +1665,6 @@ function isOrderConflictLocal(instituto, tipoBeca, numeroOrden, excludeId = null
   })
 }
 
-// Comprueba remoto (Firestore) si ya existe número de orden en el mismo 'libro'
 async function checkOrderExistsRemote(instituto, tipoBeca, numeroOrden, excludeId = null) {
   if (!window.AppFirebase || !window.AppFirebase.db) return false
   try {
@@ -1434,7 +1688,6 @@ async function checkOrderExistsRemote(instituto, tipoBeca, numeroOrden, excludeI
 }
 
 async function deleteClientFromFirestore(clientId) {
-  // Ahora borra en RTDB: /clients/{id} y las impresiones asociadas en /impresiones
   if (!window.AppFirebase || !window.AppFirebase.db) {
     console.log('deleteClientFromFirestore (RTDB): Firebase no disponible, skip')
     return
@@ -1506,71 +1759,87 @@ document.addEventListener('keydown', (e) => {
   }
 })
 
-function handleAddClient(event) {
+async function handleAddClient(event) {
   event.preventDefault()
 
-  const formData = {
-    id: Date.now().toString(),
-    nombreApellido: document.getElementById("nombreApellido").value,
-    dni: document.getElementById("dni").value,
-    carrera: document.getElementById("carrera").value,
-    instituto: document.getElementById("instituto").value,
-    tipoBeca: document.getElementById("tipoBeca").value,
-    numeroOrden: Number.parseInt(document.getElementById("numeroOrden").value),
-    fechaRegistro: new Date().toISOString(),
-  }
+  try {
+    const auto = document.getElementById('autoNumeroOrden') ? document.getElementById('autoNumeroOrden').checked : false
+    const nombre = document.getElementById('nombreApellido').value || ''
+    const dni = document.getElementById('dni').value || ''
+    const carrera = document.getElementById('carrera').value || ''
+    const instituto = document.getElementById('instituto').value || ''
+    const tipoBeca = document.getElementById('tipoBeca').value || ''
 
-  // Verificar localmente primero
-  if (clients.some((c) => c.dni === formData.dni)) {
-    showToast("Ya existe un cliente con este DNI (local)", "error")
-    return
-  }
+    if (!nombre || !dni || !instituto || !tipoBeca) {
+      showToast('Complete los campos obligatorios antes de agregar el cliente', 'error')
+      return
+    }
 
-  // Si Firebase está disponible, verificar remoto también
-  if (window.AppFirebase && window.AppFirebase.db) {
-    // comprobar remotamente si existe el DNI y el número de orden en el mismo libro
-    checkDniExistsRemote(formData.dni).then((exists) => {
-      if (exists) {
-        showToast('Ya existe un cliente con este DNI (remoto)', 'error')
+    let numeroOrden = null
+    if (auto) {
+      numeroOrden = await computeNextNumeroOrdenUnique(instituto, tipoBeca)
+    } else {
+      const nVal = document.getElementById('numeroOrden').value
+      numeroOrden = Number.parseInt(nVal)
+      if (!numeroOrden || numeroOrden <= 0) {
+        showToast('Ingrese un número de orden válido o active la asignación automática', 'error')
         return
       }
-      // comprobar número de orden remoto
-      checkOrderExistsRemote(formData.instituto, formData.tipoBeca, formData.numeroOrden).then((orderExists) => {
+    }
+
+    const formData = {
+      id: Date.now().toString(),
+      nombreApellido: nombre,
+      dni: dni,
+      carrera: carrera,
+      instituto: instituto,
+      tipoBeca: tipoBeca,
+      numeroOrden: numeroOrden,
+      fechaRegistro: new Date().toISOString(),
+    }
+
+    if (clients.some((c) => c.dni === formData.dni)) {
+      showToast('Ya existe un cliente con este DNI (local)', 'error')
+      return
+    }
+
+    if (window.AppFirebase && window.AppFirebase.db) {
+      try {
+        const existsDni = await checkDniExistsRemote(formData.dni)
+        if (existsDni) {
+          showToast('Ya existe un cliente con este DNI (remoto)', 'error')
+          return
+        }
+
+        const orderExists = await checkOrderExistsRemote(formData.instituto, formData.tipoBeca, formData.numeroOrden)
         if (orderExists) {
           showToast('Ya existe un cliente con este número de orden en ese instituto y tipo de beca (remoto)', 'error')
           return
         }
-        // Si no hay conflictos remotos, continuar
-        clients.push(formData)
-        saveData()
-        saveClientToFirestore(formData)
-        renderClients()
-        closeModal("addClientModal")
-        document.getElementById("addClientForm").reset()
-        showToast("Cliente agregado exitosamente", "success")
-      }).catch(() => {
-        showToast('Error verificando número de orden en remoto — operación cancelada', 'error')
-      })
-    }).catch(() => {
-      showToast('Error verificando DNI en remoto — operación cancelada', 'error')
-    })
-    return
-  }
+      } catch (err) {
+        console.error('Error verificando conflictos remotos', err)
+        showToast('Error verificando conflictos remotos — operación cancelada', 'error')
+        return
+      }
+    } else {
+      if (isOrderConflictLocal(formData.instituto, formData.tipoBeca, formData.numeroOrden)) {
+        showToast('Ya existe un cliente con este número de orden en el mismo instituto y tipo de beca', 'error')
+        return
+      }
+    }
 
-  // Validación local de numero de orden
-  if (isOrderConflictLocal(formData.instituto, formData.tipoBeca, formData.numeroOrden)) {
-    showToast("Ya existe un cliente con este número de orden en el mismo instituto y tipo de beca", "error")
-    return
+    clients.push(formData)
+    saveData()
+    try { saveClientToFirestore(formData) } catch (e) { /* ignore */ }
+    renderClients()
+    closeModal('addClientModal')
+    const form = document.getElementById('addClientForm')
+    if (form) form.reset()
+    showToast('Cliente agregado exitosamente', 'success')
+  } catch (err) {
+    console.error('handleAddClient error', err)
+    showToast('Error agregando cliente: ' + (err && err.message ? err.message : ''), 'error')
   }
-
-  // Si no hay Firebase, el flujo local ya fue validado arriba
-  clients.push(formData)
-  saveData()
-  saveClientToFirestore(formData)
-  renderClients()
-  closeModal("addClientModal")
-  document.getElementById("addClientForm").reset()
-  showToast("Cliente agregado exitosamente", "success")
 }
 
 function openEditClientModal(clientId) {
@@ -1606,26 +1875,22 @@ function handleEditClient(event) {
     numeroOrden: Number.parseInt(document.getElementById("editNumeroOrden").value),
   }
 
-  // Verificar conflictos locales
   if (clients.some((c) => c.dni === formData.dni && c.id !== clientId)) {
     showToast("Ya existe un cliente con este DNI (local)", "error")
     return
   }
 
-  // Verificar remoto si Firebase está disponible
   if (window.AppFirebase && window.AppFirebase.db) {
     checkDniExistsRemote(formData.dni, clientId).then((exists) => {
       if (exists) {
         showToast('Ya existe un cliente con este DNI (remoto)', 'error')
         return
       }
-      // verificar conflicto de numero de orden remoto (excluir el propio id)
       checkOrderExistsRemote(formData.instituto, formData.tipoBeca, formData.numeroOrden, clientId).then((orderExists) => {
         if (orderExists) {
           showToast('Ya existe un cliente con este número de orden en ese instituto y tipo de beca (remoto)', 'error')
           return
         }
-        // aplicar cambios
         clients[clientIndex] = formData
         saveData()
         saveClientToFirestore(formData)
@@ -1653,13 +1918,11 @@ function handleEditClient(event) {
     showToast("Ya existe un cliente con este número de orden en el mismo instituto y tipo de beca", "error")
     return
   }
-  // Validación local adicional usando helper (excluir propio id)
   if (isOrderConflictLocal(formData.instituto, formData.tipoBeca, formData.numeroOrden, clientId)) {
     showToast("Ya existe un cliente con este número de orden en el mismo instituto y tipo de beca", "error")
     return
   }
 
-  // Si no hay Firebase, aplicar cambios localmente
   clients[clientIndex] = formData
   saveData()
   saveClientToFirestore(formData)
@@ -1707,6 +1970,14 @@ function openAddImpresionModal(clientId) {
   document.getElementById("cantidadCarillas").value = ""
   document.getElementById("warningMessage").style.display = "none"
 
+  try {
+    const precio = getPricePerCarilla()
+    const previewVal = document.getElementById('impresionAmountValue')
+    if (previewVal) previewVal.textContent = formatCurrency(0)
+    const limitEl = document.getElementById('impresionLimit')
+    if (limitEl) limitEl.title = `Precio por carilla: ${formatCurrency(precio)}`
+  } catch (e) {}
+
   openModal("addImpresionModal")
 }
 
@@ -1727,13 +1998,61 @@ function validateImpresionAmount() {
   } else {
     warningMessage.style.display = "none"
   }
+
+  const warningMax = document.getElementById('warningMessageMax')
+  const btnRegister = document.getElementById('btnRegisterImpresion')
+  if (cantidad > MAX_CARILLAS_PER_IMPRESION) {
+    if (warningMax) warningMax.style.display = 'block'
+    if (btnRegister) btnRegister.disabled = true
+  } else {
+    if (warningMax) warningMax.style.display = 'none'
+    if (btnRegister) btnRegister.disabled = (cantidad > remaining || cantidad <= 0)
+  }
+
+  try { updateAmountPreview() } catch (e) {}
+}
+
+function updateAmountPreview() {
+  const input = document.getElementById('cantidadCarillas')
+  const raw = input ? (input.value || '') : ''
+  let val = Number.parseInt(raw.toString().replace(/[^0-9]/g, '')) || 0
+  const precio = getPricePerCarilla()
+
+  const warningMax = document.getElementById('warningMessageMax')
+  const btnRegister = document.getElementById('btnRegisterImpresion')
+
+  if (val > MAX_CARILLAS_PER_IMPRESION) {
+    const montoMax = Math.round(MAX_CARILLAS_PER_IMPRESION * precio)
+    const el = document.getElementById('impresionAmountValue')
+    if (el) el.textContent = formatCurrency(montoMax)
+    if (warningMax) warningMax.style.display = 'block'
+    if (btnRegister) btnRegister.disabled = true
+    return montoMax
+  }
+
+  if (warningMax) warningMax.style.display = 'none'
+  if (btnRegister) btnRegister.disabled = (val <= 0)
+  const monto = Math.round(val * precio)
+  const el = document.getElementById('impresionAmountValue')
+  if (el) el.textContent = formatCurrency(monto)
+  return monto
 }
 
 function handleAddImpresion(event) {
   event.preventDefault()
 
   const clientId = document.getElementById("impresionClientId").value
-  const cantidad = Number.parseInt(document.getElementById("cantidadCarillas").value)
+  let cantidad = Number.parseInt(document.getElementById("cantidadCarillas").value)
+
+  if (!Number.isFinite(cantidad) || cantidad <= 0) {
+    showToast('Ingrese una cantidad válida', 'error')
+    return
+  }
+
+  if (cantidad > MAX_CARILLAS_PER_IMPRESION) {
+    showToast(`La cantidad por impresión no puede superar ${MAX_CARILLAS_PER_IMPRESION}`, 'error')
+    return
+  }
 
   const client = clients.find((c) => c.id === clientId)
   if (!client) return
@@ -1753,6 +2072,13 @@ function handleAddImpresion(event) {
     cantidad: cantidad,
     fecha: new Date().toISOString(),
     turno: currentTurno,
+  }
+
+  try {
+    const precio = getPricePerCarilla()
+    impresion.monto = Number((cantidad * precio).toFixed(0))
+  } catch (e) {
+    impresion.monto = cantidad * 40
   }
 
   impresiones.push(impresion)
@@ -1807,7 +2133,10 @@ function openHistorialModal(clientId) {
                           <div class="historial-turno" style="color: var(--text-muted); font-size:0.85rem">Turno: ${imp.turno}</div>
                         </span>
                         <div style="display:flex; align-items:center; gap:0.75rem;">
-                          <div class="historial-carillas">${imp.cantidad} carillas</div>
+                          <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                            <div class="historial-carillas" style="font-weight:600">${imp.cantidad} carillas</div>
+                            <div style="font-size:0.85rem; color:var(--text-secondary);">${formatCurrency(imp.monto || (imp.cantidad * getPricePerCarilla()))}</div>
+                          </div>
                           <button class="btn-icon historial-delete" title="Eliminar impresión" data-impresion-id="${imp.id}">
                             <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                           </button>
@@ -1852,87 +2181,296 @@ function deleteImpresionById(impresionId) {
 }
 
 function openStatsModal() {
+  const statsContent = document.getElementById('statsContent')
+  const mesSelect = document.getElementById('statsMes')
+  const anoSelect = document.getElementById('statsAno')
+  const instSelect = document.getElementById('statsInstituto')
+  const tipoSelect = document.getElementById('statsTipo')
+  const btnExport = document.getElementById('btnExportStats')
+
   const now = new Date()
-  const currentMonth = now.getMonth()
+  const currentMonth = now.getMonth() + 1
   const currentYear = now.getFullYear()
 
-  const monthImpresiones = impresiones.filter((i) => {
-    const impresionDate = new Date(i.fecha)
-    return impresionDate.getMonth() === currentMonth && impresionDate.getFullYear() === currentYear
-  })
-
-  const totalCarillas = monthImpresiones.reduce((sum, i) => sum + i.cantidad, 0)
-  const clientesActivos = new Set(monthImpresiones.map((i) => i.clienteId)).size
-  const promedioCarillas = clientesActivos > 0 ? Math.round(totalCarillas / clientesActivos) : 0
-
-  const becaStats = {
-    A: monthImpresiones
-      .filter((i) => {
-        const client = clients.find((c) => c.id === i.clienteId)
-        return client && client.tipoBeca === "A"
-      })
-      .reduce((sum, i) => sum + i.cantidad, 0),
-    B: monthImpresiones
-      .filter((i) => {
-        const client = clients.find((c) => c.id === i.clienteId)
-        return client && client.tipoBeca === "B"
-      })
-      .reduce((sum, i) => sum + i.cantidad, 0),
-    C: monthImpresiones
-      .filter((i) => {
-        const client = clients.find((c) => c.id === i.clienteId)
-        return client && client.tipoBeca === "C"
-      })
-      .reduce((sum, i) => sum + i.cantidad, 0),
+  if (anoSelect && anoSelect.children.length === 0) {
+    const empty = document.createElement('option')
+    empty.value = ''
+    empty.textContent = 'Este año'
+    anoSelect.appendChild(empty)
+    for (let y = currentYear; y >= currentYear - 5; y--) {
+      const opt = document.createElement('option')
+      opt.value = String(y)
+      opt.textContent = String(y)
+      anoSelect.appendChild(opt)
+    }
   }
 
-  const statsContent = document.getElementById("statsContent")
-  statsContent.innerHTML = `
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total de Carillas</div>
-                <div class="stat-value">${totalCarillas}</div>
-                <div class="stat-subtitle">Este mes</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Clientes Activos</div>
-                <div class="stat-value">${clientesActivos}</div>
-                <div class="stat-subtitle">De ${clients.length} totales</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Promedio por Cliente</div>
-                <div class="stat-value">${promedioCarillas}</div>
-                <div class="stat-subtitle">Carillas</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total de Impresiones</div>
-                <div class="stat-value">${monthImpresiones.length}</div>
-                <div class="stat-subtitle">Registros</div>
-            </div>
+  if (mesSelect) mesSelect.value = ''
+  if (anoSelect) anoSelect.value = ''
+  if (instSelect) instSelect.value = ''
+  if (tipoSelect) tipoSelect.value = ''
+
+  function computeStats({ mes = '', ano = '', instituto = '', tipoBeca = '' } = {}) {
+    const filteredImpresiones = impresiones.filter(i => {
+      try {
+        const d = new Date(i.fecha)
+        if (ano && d.getFullYear() !== Number.parseInt(ano)) return false
+        if (mes && (d.getMonth() + 1) !== Number.parseInt(mes)) return false
+        return true
+      } catch (e) { return false }
+    })
+
+    let filteredClients = clients.slice()
+    if (instituto) filteredClients = filteredClients.filter(c => (c.instituto || '') === instituto)
+    if (tipoBeca) filteredClients = filteredClients.filter(c => (c.tipoBeca || '') === tipoBeca)
+
+    const clientIdsSet = new Set(filteredClients.map(c => c.id))
+    const impresionesFinal = filteredImpresiones.filter(i => clientIdsSet.has(i.clienteId))
+
+    const totalCarillas = impresionesFinal.reduce((s, it) => s + (it.cantidad || 0), 0)
+    const totalImpresiones = impresionesFinal.length
+    const clientesActivos = new Set(impresionesFinal.map(i => i.clienteId)).size
+    const promedioPorCliente = clientesActivos > 0 ? Math.round(totalCarillas / clientesActivos) : 0
+
+    const precioActual = getPricePerCarilla()
+    const totalMoney = impresionesFinal.reduce((s, it) => {
+      const m = (it && typeof it.monto !== 'undefined') ? Number(it.monto) : (Number(it.cantidad || 0) * precioActual)
+      return s + (isFinite(m) ? m : 0)
+    }, 0)
+
+    const impresionesAllForClients = impresiones.filter(i => clientIdsSet.has(i.clienteId))
+    const totalMoneyAll = impresionesAllForClients.reduce((s, it) => {
+      const m = (it && typeof it.monto !== 'undefined') ? Number(it.monto) : (Number(it.cantidad || 0) * precioActual)
+      return s + (isFinite(m) ? m : 0)
+    }, 0)
+
+    const institutos = ['Salud','Sociales','Ingeniería']
+    const perInstituto = {}
+    institutos.forEach(inst => { perInstituto[inst] = 0 })
+    impresionesFinal.forEach(i => {
+      const cli = clients.find(c => c.id === i.clienteId)
+      if (!cli) return
+      const inst = cli.instituto || 'Sin instituto'
+      if (!perInstituto[inst]) perInstituto[inst] = 0
+      perInstituto[inst] += (i.cantidad || 0)
+    })
+
+    const tipos = ['A','B','C']
+    const perTipo = { A:0, B:0, C:0 }
+    impresionesFinal.forEach(i => {
+      const cli = clients.find(c => c.id === i.clienteId)
+      if (!cli) return
+      const t = cli.tipoBeca || 'N'
+      if (perTipo[t] === undefined) perTipo[t] = 0
+      perTipo[t] += (i.cantidad || 0)
+    })
+
+    const byClient = {}
+    impresionesFinal.forEach(i => {
+      byClient[i.clienteId] = (byClient[i.clienteId] || 0) + (i.cantidad || 0)
+    })
+    const topClients = Object.keys(byClient).map(id => ({ id, cantidad: byClient[id], nombre: (clients.find(c=>c.id===id)||{}).nombreApellido || 'Desconocido' }))
+      .sort((a,b) => b.cantidad - a.cantidad)
+      .slice(0,6)
+
+    return {
+      totalCarillas,
+      totalImpresiones,
+      clientesActivos,
+      promedioPorCliente,
+      perInstituto,
+      perTipo,
+      topClients,
+      filteredClientsCount: filteredClients.length,
+      totalMoney,
+      totalMoneyAll
+    }
+  }
+
+  function drawBars(container, dataArr, colorVar) {
+    container.innerHTML = ''
+    const max = Math.max(1, ...dataArr.map(d => d.value))
+    dataArr.forEach(d => {
+      const row = document.createElement('div')
+      row.className = 'bar-row'
+      const label = document.createElement('div')
+      label.className = 'bar-label'
+      label.textContent = d.label
+      const bar = document.createElement('div')
+      bar.className = 'bar'
+      const inner = document.createElement('i')
+      const percent = Math.round((d.value / max) * 100)
+      inner.style.width = percent + '%'
+      inner.style.background = `linear-gradient(90deg, var(${colorVar}), rgba(255,255,255,0.06))`
+      bar.appendChild(inner)
+      const value = document.createElement('div')
+      value.style.width = '68px'
+      value.style.textAlign = 'right'
+      value.style.fontSize = '0.85rem'
+      value.style.color = 'var(--text-secondary)'
+      value.textContent = d.value
+      row.appendChild(label)
+      row.appendChild(bar)
+      row.appendChild(value)
+      container.appendChild(row)
+    })
+  }
+
+  function render() {
+    const filters = {
+      mes: mesSelect ? mesSelect.value : '',
+      ano: anoSelect ? anoSelect.value : '',
+      instituto: instSelect ? instSelect.value : '',
+      tipoBeca: tipoSelect ? tipoSelect.value : ''
+    }
+
+    const s = computeStats(filters)
+
+    statsContent.innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Carillas</div><div class="stat-value">${s.totalCarillas}</div><div class="stat-subtitle">Total</div></div>
+        <div class="stat-card"><div class="stat-label">Impresiones</div><div class="stat-value">${s.totalImpresiones}</div><div class="stat-subtitle">Registros</div></div>
+        <div class="stat-card"><div class="stat-label">Estudiantes activos</div><div class="stat-value">${s.clientesActivos}</div><div class="stat-subtitle">De ${s.filteredClientsCount} clientes filtrados</div></div>
+        <div class="stat-card"><div class="stat-label">Promedio / Estuduante</div><div class="stat-value">${s.promedioPorCliente}</div><div class="stat-subtitle">Carillas</div></div>
+        <div class="stat-card"><div class="stat-label">Monto (periodo)</div><div class="stat-value">${formatCurrency(s.totalMoney)}</div><div class="stat-subtitle">Equivalente al periodo filtrado</div></div>
+        <div class="stat-card"><div class="stat-label">Monto (acumulado)</div><div class="stat-value">${formatCurrency(s.totalMoneyAll)}</div><div class="stat-subtitle">Total histórico para clientes</div></div>
+      </div>
+
+      <div class="stats-charts">
+        <div class="stat-chart">
+          <div class="chart-title">Uso por Instituto</div>
+          <div id="chartInstituto"></div>
         </div>
-        <div style="margin-top: 1.5rem;">
-            <h4 style="margin-bottom: 1rem; color: var(--text-secondary);">Por Tipo de Beca</h4>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Beca A</div>
-                    <div class="stat-value">${becaStats.A}</div>
-                    <div class="stat-subtitle">Carillas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Beca B</div>
-                    <div class="stat-value">${becaStats.B}</div>
-                    <div class="stat-subtitle">Carillas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Beca C</div>
-                    <div class="stat-value">${becaStats.C}</div>
-                    <div class="stat-subtitle">Carillas</div>
-                </div>
-            </div>
+        <div class="stat-chart">
+          <div class="chart-title">Uso por Tipo de Beca</div>
+          <div id="chartTipo"></div>
         </div>
+      </div>
     `
 
-  openModal("statsModal")
+    const chartInst = document.getElementById('chartInstituto')
+    const chartTipo = document.getElementById('chartTipo')
+    const instData = Object.keys(s.perInstituto).map(k => ({ label: k, value: s.perInstituto[k] }))
+    const tipoData = Object.keys(s.perTipo).map(k => ({ label: k, value: s.perTipo[k] }))
+
+    if (chartInst) drawBars(chartInst, instData, '--blue-primary')
+    if (chartTipo) drawBars(chartTipo, tipoData, '--green-primary')
+
+    if (btnExport) {
+      btnExport.onclick = () => exportStatsPdf(s, filters)
+    }
+  }
+  async function exportStatsPdf(statsObj, filters) {
+    try {
+      const jspdfModule = await ensureJsPDF()
+      const jsPDF = (jspdfModule && jspdfModule.jsPDF) || jspdfModule
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const margin = 36
+      let y = margin
+
+      doc.setFontSize(16)
+      doc.setFont(undefined, 'bold')
+      doc.text('Resumen de Estadísticas', 210, y, { align: 'center' })
+      y += 28
+
+      doc.setFontSize(11)
+      doc.setFont(undefined, 'normal')
+      doc.text(`Filtros: Mes: ${filters.mes || 'Actual'} — Año: ${filters.ano || 'Actual'} — Instituto: ${filters.instituto || 'Todos'} — Tipo: ${filters.tipoBeca || 'Todos'}`, margin, y, { maxWidth: 540 })
+      y += 22
+
+      const metrics = [
+        ['Total carillas', statsObj.totalCarillas],
+        ['Total impresiones', statsObj.totalImpresiones],
+        ['Clientes activos', statsObj.clientesActivos],
+        ['Promedio / cliente', statsObj.promedioPorCliente]
+      ]
+
+      metrics.push(['Monto (periodo)', formatCurrency(statsObj.totalMoney)])
+      metrics.push(['Monto (acumulado)', formatCurrency(statsObj.totalMoneyAll)])
+
+      metrics.forEach(row => {
+        doc.setFont(undefined, 'bold')
+        doc.text(row[0] + ':', margin, y)
+        doc.setFont(undefined, 'normal')
+        doc.text(String(row[1]), margin + 240, y)
+        y += 18
+      })
+
+      y += 8
+
+      doc.setFont(undefined, 'bold')
+      doc.text('Uso por Instituto', margin, y)
+      y += 14
+      const perInst = statsObj.perInstituto || {}
+      const instKeys = Object.keys(perInst)
+      const maxInst = Math.max(1, ...instKeys.map(k => perInst[k] || 0))
+      instKeys.forEach(k => {
+        const val = perInst[k] || 0
+        doc.setFont(undefined, 'normal')
+        doc.text(k, margin, y + 10)
+        const barX = margin + 120
+        const barW = Math.round((val / maxInst) * 300)
+        doc.setFillColor(80, 140, 255)
+        doc.rect(barX, y, barW, 10, 'F')
+        doc.setDrawColor(200)
+        doc.rect(barX, y, 300, 10)
+        doc.text(String(val), barX + 308, y + 8)
+        y += 18
+      })
+
+      y += 8
+
+      doc.setFont(undefined, 'bold')
+      doc.text('Uso por Tipo de Beca', margin, y)
+      y += 14
+      const perTipo = statsObj.perTipo || {}
+      const tipoKeys = Object.keys(perTipo)
+      const maxTipo = Math.max(1, ...tipoKeys.map(k => perTipo[k] || 0))
+      tipoKeys.forEach(k => {
+        const val = perTipo[k] || 0
+        doc.setFont(undefined, 'normal')
+        doc.text(k, margin, y + 10)
+        const barX = margin + 120
+        const barW = Math.round((val / maxTipo) * 300)
+        doc.setFillColor(34, 197, 94)
+        doc.rect(barX, y, barW, 10, 'F')
+        doc.setDrawColor(200)
+        doc.rect(barX, y, 300, 10)
+        doc.text(String(val), barX + 308, y + 8)
+        y += 18
+      })
+
+      y = Math.min(y + 24, 760)
+      doc.setFontSize(9)
+      doc.setTextColor(120)
+      doc.text(`Generado: ${new Date().toLocaleString()}`, margin, y)
+
+      const blob = doc.output('blob')
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const sanitize = s => (s || '').toString().trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-()]/g, '')
+      const instPart = sanitize(filters.instituto || 'Todos')
+      const tipoPart = sanitize(filters.tipoBeca || 'Todos')
+      a.download = `estadisticas_${filters.ano || currentYear}_${filters.mes || currentMonth}(${instPart})(${tipoPart}).pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      showToast('Exportando estadísticas (PDF)', 'success')
+    } catch (err) {
+      console.error('Error generando PDF de estadísticas', err)
+      showToast('No se pudo generar PDF: ' + (err && err.message ? err.message : ''), 'error')
+    }
+  }
+
+  if (mesSelect) mesSelect.addEventListener('change', render)
+  if (anoSelect) anoSelect.addEventListener('change', render)
+  if (instSelect) instSelect.addEventListener('change', render)
+  if (tipoSelect) tipoSelect.addEventListener('change', render)
+
+  render()
+  openModal('statsModal')
 }
 
 function initializeYearFilter() {
@@ -1958,6 +2496,37 @@ function initializeYearFilter() {
       option.value = year
       option.textContent = year
       downloadYear.appendChild(option)
+    }
+  }
+
+  const mesSelect = document.getElementById('filterMes')
+  if (mesSelect) {
+    mesSelect.innerHTML = ''
+    const allOpt = document.createElement('option')
+    allOpt.value = ''
+    allOpt.textContent = 'Todos'
+    mesSelect.appendChild(allOpt)
+    const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+    months.forEach((m, idx) => {
+      const o = document.createElement('option')
+      o.value = String(idx + 1)
+      o.textContent = m
+      mesSelect.appendChild(o)
+    })
+  }
+
+  const statsAno = document.getElementById('statsAno')
+  if (statsAno) {
+    statsAno.innerHTML = ''
+    const emptyOpt2 = document.createElement('option')
+    emptyOpt2.value = ''
+    emptyOpt2.textContent = 'Todos'
+    statsAno.appendChild(emptyOpt2)
+    for (let year = currentYear; year >= currentYear - 5; year--) {
+      const opt = document.createElement('option')
+      opt.value = year
+      opt.textContent = year
+      statsAno.appendChild(opt)
     }
   }
 }
@@ -1989,12 +2558,12 @@ function downloadMonthData() {
       instituto: client.instituto || '',
       tipoBeca: client.tipoBeca || '',
       cantidad: i.cantidad,
-      turno: i.turno || ''
+      turno: i.turno || '',
+      monto: (typeof i.monto !== 'undefined') ? i.monto : (i.cantidad * getPricePerCarilla())
     })
   })
 
-  // CSV header
-  const header = ['fecha','cliente','dni','instituto','tipoBeca','cantidad','turno']
+  const header = ['fecha','cliente','dni','instituto','tipoBeca','cantidad','turno','monto']
   const csvContent = [header.join(',')].concat(rows.map(r => [
     `"${new Date(r.fecha).toLocaleString('es-AR')}"`,
     `"${(r.cliente || '').replace(/"/g,'""') }"`,
@@ -2002,7 +2571,8 @@ function downloadMonthData() {
     `"${(r.instituto || '').replace(/"/g,'""') }"`,
     `"${r.tipoBeca || ''}"`,
     r.cantidad,
-    `"${r.turno || ''}"`
+    `"${r.turno || ''}"`,
+    r.monto
   ].join(','))).join('\n')
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -2051,7 +2621,6 @@ function checkTurnoAlerts() {
   }
 }
 
-// Centraliza la lógica que decide si el selector de turno debe resaltarse en naranja
 function updateTurnoAttention() {
   const turnoWrapper = document.querySelector('.turno-selector')
   const turnoSelect = document.getElementById('turnoSelect')
@@ -2063,13 +2632,11 @@ function updateTurnoAttention() {
   const isWeekday = day >= 1 && day <= 5
   const hours = now.getHours()
 
-  // Nunca resaltar si está en 'Unico' o si no es día laborable
   if (value === 'Unico' || !isWeekday) {
     turnoWrapper.classList.remove('turno-attention')
     return
   }
 
-  // Regla 1: si está seleccionado 'Mañana' y son las 14:00 o más -> resaltar
   if (value === 'Mañana' && hours >= 14) {
     turnoWrapper.classList.add('turno-attention')
     turnoWrapper.setAttribute('title', 'Atención: turno Mañana fuera de horario esperado. Verificar.')
@@ -2077,7 +2644,6 @@ function updateTurnoAttention() {
     return
   }
 
-  // Regla 2: si está seleccionado 'Tarde' y son antes de las 14:00 -> resaltar
   if (value === 'Tarde' && hours < 14) {
     turnoWrapper.classList.add('turno-attention')
     turnoWrapper.setAttribute('title', 'Atención: turno Tarde fuera de horario esperado. Verificar.')
@@ -2085,9 +2651,7 @@ function updateTurnoAttention() {
     return
   }
 
-  // En cualquier otro caso quitar el resalte
   turnoWrapper.classList.remove('turno-attention')
-  // remover atributos de accesibilidad/tooltip si existían
   turnoWrapper.removeAttribute('title')
   turnoWrapper.removeAttribute('aria-describedby')
 }
@@ -2118,7 +2682,6 @@ function clearFilters() {
   showToast("Filtros limpiados", "success")
 }
 
-// Función de reinicio de mes
 function openResetMonthModal() {
   openModal("resetMonthModal")
 }
@@ -2128,7 +2691,6 @@ function confirmResetMonth() {
   const currentMonth = now.getMonth()
   const currentYear = now.getFullYear()
 
-  // Eliminar impresiones del mes actual
   impresiones = impresiones.filter((i) => {
     const impresionDate = new Date(i.fecha)
     return !(impresionDate.getMonth() === currentMonth && impresionDate.getFullYear() === currentYear)
@@ -2140,22 +2702,17 @@ function confirmResetMonth() {
   showToast("Mes reiniciado exitosamente", "success")
 }
 
-// Renderizado
 function renderClients(searchTerm = "") {
   let filteredClients = [...clients]
 
-  // Aplicar búsqueda
   if (searchTerm) {
     const term = searchTerm.toLowerCase()
     filteredClients = filteredClients.filter(
       (c) => c.nombreApellido.toLowerCase().includes(term) || c.dni.includes(term),
     )
   }
-    // --- Modificaciones: resaltar instituto y número de orden, añadir copiar DNI y atajo Ctrl+F ---
-    // Local helper: copia texto al portapapeles y muestra toast
     function copyToClipboard(text) {
       if (!navigator.clipboard) {
-        // fallback
         const ta = document.createElement('textarea')
         ta.value = text
         document.body.appendChild(ta)
@@ -2187,7 +2744,6 @@ function renderClients(searchTerm = "") {
 
     window.copyDNI = copyDNI
 
-  // Aplicar filtros
   if (currentFilters.tipoBeca) {
     filteredClients = filteredClients.filter((c) => c.tipoBeca === currentFilters.tipoBeca)
   }
@@ -2221,9 +2777,13 @@ function renderClients(searchTerm = "") {
   }
 
   const clientCountEl = document.getElementById("clientCount")
-  if (clientCountEl) clientCountEl.textContent = `${filteredClients.length} cliente${filteredClients.length !== 1 ? "s" : ""}`
+  if (clientCountEl) {
+    const numEl = clientCountEl.querySelector('.client-count-number')
+    if (numEl) numEl.textContent = String(filteredClients.length)
+    else clientCountEl.textContent = `${filteredClients.length} estudiantes`
+    clientCountEl.title = `${filteredClients.length} estudiantes registrados`
+  }
 
-  // actualizar texto del botón de filtros si hay filtros aplicados
   const btnFilters = document.getElementById('btnFilters')
   const hasFilters = Object.keys(currentFilters).some(k => currentFilters[k])
   if (btnFilters) btnFilters.textContent = hasFilters ? 'Filtros aplicados' : 'Filtros'
@@ -2243,15 +2803,11 @@ function renderClients(searchTerm = "") {
 
   clientsList.classList.remove('empty')
 
-  // FLIP animation: capture first positions
   const firstRects = Array.from(clientsList.children).map(el => el.getBoundingClientRect())
 
-  // usamos generateClientCardHtml global
 
-  // Aplicar paginación (si showAllClients es true mostramos todos los filtrados)
   const totalItems = filteredClients.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-  // Ajustar currentPage si quedó fuera de rango
   if (currentPage > totalPages) currentPage = totalPages
 
   let toRender = []
@@ -2265,10 +2821,8 @@ function renderClients(searchTerm = "") {
 
   const html = toRender.map((client) => generateClientCardHtml(client)).join("")
 
-  // Si no estamos mostrando todo y hay más que los mostrados por página, añadimos un pequeño aviso (opcional)
   clientsList.innerHTML = html
 
-  // FLIP: measure last positions and animate
   const newChildren = Array.from(clientsList.children)
   const lastRects = newChildren.map(el => el.getBoundingClientRect())
 
@@ -2288,7 +2842,6 @@ function renderClients(searchTerm = "") {
     }
   })
 
-  // Si añadimos el botón para mostrar todo, enlazamos su evento
   const btnShowAll = document.getElementById('btnShowAllClients')
   if (btnShowAll) {
     btnShowAll.addEventListener('click', () => {
@@ -2296,14 +2849,10 @@ function renderClients(searchTerm = "") {
     })
   }
 
-  // Construir controles de paginación
   const paginationEl = document.getElementById('pagination')
   if (paginationEl) {
-    // Helper para generar boton
     const makeBtn = (label, action, page = null, extraAttrs = '') => `<button class="btn btn-secondary" data-page-action="${action}" ${page !== null ? `data-page="${page}"` : ''} ${extraAttrs}>${label}</button>`
 
-  // Limitar cantidad de botones numéricos mostrados y usar puntos suspensivos si es necesario
-  // Ajustar dinámicamente según el ancho de la ventana para evitar scroll horizontal en móviles
   const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
   let maxButtons
   if (vw < 360) maxButtons = 3
@@ -2316,20 +2865,17 @@ function renderClients(searchTerm = "") {
     parts.push(makeBtn('Anterior', 'prev', null, `data-total-pages="${totalPages}"`))
 
     if (totalPages <= maxButtons) {
-      // mostrar todos
       for (let p = 1; p <= totalPages; p++) {
         if (p === currentPage) parts.push(`<button class="btn btn-primary" aria-current="page" data-page-action="goto" data-page="${p}" data-total-pages="${totalPages}">${p}</button>`)
         else parts.push(makeBtn(p, 'goto', p, `data-total-pages="${totalPages}"`))
       }
     } else {
-      // mostrar una ventana alrededor de currentPage, con ellipsis cuando corresponde
       const leftSiblingCount = Math.floor((maxButtons - 1) / 2)
       const rightSiblingCount = Math.ceil((maxButtons - 1) / 2)
 
       let left = Math.max(1, currentPage - leftSiblingCount)
       let right = Math.min(totalPages, currentPage + rightSiblingCount)
 
-      // ajustar si nos acercamos a los extremos
       if (currentPage - left < leftSiblingCount) {
         right = Math.min(totalPages, right + (leftSiblingCount - (currentPage - left)))
       }
@@ -2337,14 +2883,12 @@ function renderClients(searchTerm = "") {
         left = Math.max(1, left - (rightSiblingCount - (right - currentPage)))
       }
 
-      // Asegurar que la ventana tenga tamaño maxButtons
       const windowSize = right - left + 1
       if (windowSize < maxButtons) {
         if (left === 1) right = Math.min(totalPages, left + maxButtons - 1)
         else if (right === totalPages) left = Math.max(1, right - maxButtons + 1)
       }
 
-      // Si hay espacio antes de 'left', mostrar 1 y ellipsis
       if (left > 1) {
         parts.push(makeBtn(1, 'goto', 1, `data-total-pages="${totalPages}"`))
         if (left > 2) parts.push(`<span class="pagination-ellipsis">…</span>`)
@@ -2355,7 +2899,6 @@ function renderClients(searchTerm = "") {
         else parts.push(makeBtn(p, 'goto', p, `data-total-pages="${totalPages}"`))
       }
 
-      // Si hay espacio después de 'right', mostrar ellipsis y última página
       if (right < totalPages) {
         if (right < totalPages - 1) parts.push(`<span class="pagination-ellipsis">…</span>`)
         parts.push(makeBtn(totalPages, 'goto', totalPages, `data-total-pages="${totalPages}"`))
@@ -2368,57 +2911,43 @@ function renderClients(searchTerm = "") {
   paginationEl.innerHTML = `<div class="pagination-inner">${parts.join('')}</div>`
   }
 
-  // Animación de entrada secuencial solo en la primera render (o si no fue ejecutada aún)
   if (!_firstRenderDone) {
-    // esperar a que el DOM pinte
     requestAnimationFrame(() => {
       animateInitialCards()
       _firstRenderDone = true
     })
   }
 
-  // Si acabamos de renderizar por paginación, aplicar clase de entrada para animación general
-  // (Esto también cubre render tras animatePageChange)
-  // Solo aplicar esta animación de entrada cuando venimos de una paginación explícita
-  // (evita duplicar la animación de entrada inicial). La bandera __justPaginated
-  // la establece animatePageChange() justo antes de llamar a renderClients().
   if (__justPaginated) {
-    // limpiar la bandera inmediatamente para futuros renders normales
     __justPaginated = false
     requestAnimationFrame(() => {
       const cards = Array.from(clientsList.querySelectorAll('[data-client-id]'))
       cards.forEach((c, idx) => {
         c.classList.remove('page-enter', 'page-enter-active')
         c.classList.add('page-enter')
-        // forzar reflow
         void c.offsetWidth
         setTimeout(() => { c.classList.add('page-enter-active') }, 20 + idx * 25)
-        // limpiar clases al finalizar
         setTimeout(() => { c.classList.remove('page-enter', 'page-enter-active') }, 480 + idx * 25)
       })
     })
   }
 }
 
-// Ejecuta animación de salida y luego cambia la página (renderClients) sin hacer scroll
 function animatePageChange() {
   const clientsList = document.getElementById('clientsList')
   if (!clientsList) { renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : ''); return }
   const cards = Array.from(clientsList.querySelectorAll('[data-client-id]'))
   if (cards.length === 0) { renderClients(document.getElementById('searchInput') ? document.getElementById('searchInput').value : ''); return }
 
-  // aplicar clase de salida con pequeño stagger
   cards.forEach((c, i) => {
     setTimeout(() => {
       c.classList.remove('page-enter', 'page-enter-active')
       c.classList.add('page-exit')
-      // trigger
       void c.offsetWidth
       c.classList.add('page-exit-active')
     }, i * 30)
   })
 
-  // calcular duración máxima (stagger + transición) antes de renderizar la nueva página
   const totalDuration = 30 * cards.length + 280
   setTimeout(() => {
     __justPaginated = true
@@ -2426,27 +2955,22 @@ function animatePageChange() {
   }, totalDuration)
 }
 
-// Mostrar todas las tarjetas restantes con una animación suave
 function revealAllClients(filteredClients) {
   showAllClients = true
   const clientsList = document.getElementById('clientsList')
   if (!clientsList) return
 
-  // Generar HTML de las tarjetas que faltan (las que no están actualmente renderizadas)
   const existingIds = new Set(Array.from(clientsList.querySelectorAll('[data-client-id]')).map(el => el.getAttribute('data-client-id')))
   const missing = filteredClients.filter(c => !existingIds.has(c.id))
   if (missing.length === 0) {
-    // Simplemente re-renderizar
     renderClients()
     return
   }
 
-  // Crear contenedor temporal para las nuevas tarjetas, ocultarlas inicialmente
   const frag = document.createDocumentFragment()
   missing.forEach((c) => {
     const temp = document.createElement('div')
   temp.innerHTML = generateClientCardHtml(c)
-    // temp may contain multiple nodes; append each
     Array.from(temp.children).forEach(ch => {
       ch.style.opacity = '0'
       ch.style.transform = 'translateY(18px)'
@@ -2455,13 +2979,11 @@ function revealAllClients(filteredClients) {
     })
   })
 
-  // Remove the 'Mostrar más' button area first
   const moreTrigger = document.getElementById('clientsMoreTrigger')
   if (moreTrigger) moreTrigger.remove()
 
   clientsList.appendChild(frag)
 
-  // Stagger reveal
   const newCards = Array.from(clientsList.querySelectorAll('[data-client-id]')).slice(-missing.length)
   newCards.forEach((card, idx) => {
     setTimeout(() => {
@@ -2473,14 +2995,69 @@ function revealAllClients(filteredClients) {
 
 function openModal(modalId) {
   const modal = document.getElementById(modalId)
-  modal.classList.add("active")
-  document.body.style.overflow = "hidden"
+  if (!modal) return
+  modal.classList.remove('modal-closing')
+  modal.classList.add('active', 'modal-opening')
+
+  modal.offsetHeight
+
+  const onIn = (ev) => {
+    if (ev && ev.target && ev.target !== modal && ev.target !== modal.querySelector('.modal-content')) return
+    modal.classList.remove('modal-opening')
+    modal.removeEventListener('animationend', onIn)
+  }
+  modal.addEventListener('animationend', onIn)
+
+  try {
+    const scrollY = window.scrollY || document.documentElement.scrollTop || 0
+    document.body.dataset.modalScrollY = String(scrollY)
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollY}px`
+    document.body.style.left = '0'
+    document.body.style.right = '0'
+    document.body.classList.add('modal-open')
+  } catch (e) {
+    document.body.style.overflow = "hidden"
+  }
 }
 
 function closeModal(modalId) {
   const modal = document.getElementById(modalId)
-  modal.classList.remove("active")
-  document.body.style.overflow = "auto"
+  if (!modal) return
+  if (modal.classList.contains('modal-closing')) return
+
+  modal.classList.remove('modal-opening')
+  modal.classList.add('modal-closing')
+
+  let cleaned = false
+  const finishClose = () => {
+    if (cleaned) return
+    cleaned = true
+    modal.classList.remove('active', 'modal-closing', 'modal-opening')
+    try {
+      const prev = document.body.dataset.modalScrollY ? parseInt(document.body.dataset.modalScrollY, 10) : null
+      document.body.classList.remove('modal-open')
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.left = ''
+      document.body.style.right = ''
+      document.body.style.overflow = ''
+      if (prev !== null && !Number.isNaN(prev)) {
+        window.scrollTo({ top: prev, left: 0, behavior: 'auto' })
+      }
+      delete document.body.dataset.modalScrollY
+    } catch (e) {
+      document.body.style.overflow = "auto"
+    }
+  }
+
+  const onOut = (ev) => {
+    finishClose()
+    modal.removeEventListener('animationend', onOut)
+  }
+  modal.addEventListener('animationend', onOut)
+
+  setTimeout(() => finishClose(), 400)
 }
 
 function openAddClientModal() {
@@ -2534,6 +3111,242 @@ function startDigitalClock() {
   setInterval(update, 1000)
 }
 
+function openClientsGridModal(selectedInstituto = '') {
+  try {
+    const el = document.getElementById('clientsGridModal')
+    if (!el) return
+    openModal('clientsGridModal')
+    const buttons = Array.from(document.querySelectorAll('.institute-filter'))
+    buttons.forEach(b => {
+      const inst = b.getAttribute('data-inst') || ''
+      if ((inst || '') === (selectedInstituto || '')) {
+        b.classList.remove('btn-secondary')
+        b.classList.add('btn-primary')
+        b.setAttribute('aria-pressed', 'true')
+      } else {
+        b.classList.remove('btn-primary')
+        b.classList.add('btn-secondary')
+        b.setAttribute('aria-pressed', 'false')
+      }
+    })
+
+    try {
+      const searchEl = document.getElementById('clientsGridSearch')
+      if (searchEl) { searchEl.value = '' }
+    } catch(e) {}
+
+    renderClientsGrid(selectedInstituto)
+    try { const searchEl2 = document.getElementById('clientsGridSearch'); if (searchEl2) setTimeout(() => { try { searchEl2.focus() } catch(e){} }, 40) } catch(e) {}
+  } catch (err) {
+    console.error('openClientsGridModal error', err)
+  }
+}
+
+function renderClientsGrid(instituto = '') {
+  try {
+    const tbody = document.getElementById('clientsGridBody')
+    if (!tbody) return
+    const instFilter = (instituto || '').toString()
+    let filtered = [...clients]
+    if (instFilter) filtered = filtered.filter(c => (c.instituto || '') === instFilter)
+
+    try {
+      const searchEl = document.getElementById('clientsGridSearch')
+      const term = searchEl ? (searchEl.value || '').toString().trim().toLowerCase() : ''
+      if (term) {
+        filtered = filtered.filter(c => {
+          const name = (c.nombreApellido || '').toString().toLowerCase()
+          const dni = (c.dni || '').toString().toLowerCase()
+          return name.indexOf(term) !== -1 || dni.indexOf(term) !== -1
+        })
+      }
+    } catch (e) {  }
+
+    const instituteOrder = ['Salud', 'Sociales', 'Ingeniería']
+    const tipoOrder = { 'A': 1, 'B': 2, 'C': 3 }
+    filtered.sort((a, b) => {
+      const ia = instituteOrder.indexOf(a.instituto) === -1 ? 99 : instituteOrder.indexOf(a.instituto)
+      const ib = instituteOrder.indexOf(b.instituto) === -1 ? 99 : instituteOrder.indexOf(b.instituto)
+      if (ia !== ib) return ia - ib
+      const ta = (a.tipoBeca || '').toString().toUpperCase()
+      const tb = (b.tipoBeca || '').toString().toUpperCase()
+      const tva = tipoOrder[ta] || 99
+      const tvb = tipoOrder[tb] || 99
+      if (tva !== tvb) return tva - tvb
+      const na = Number.parseInt(a.numeroOrden) || 0
+      const nb = Number.parseInt(b.numeroOrden) || 0
+      return na - nb
+    })
+
+    if (!filtered || filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="padding:10px; color:var(--text-muted)">No hay clientes para el filtro seleccionado.</td></tr>`
+      return
+    }
+
+    const instClassMap = { 'Salud': 'instituto-salud', 'Sociales': 'instituto-sociales', 'Ingeniería': 'instituto-ingenieria' }
+
+    const rows = filtered.map(c => {
+      const used = getUsedCarillasThisMonth(c.id)
+      const limit = BECA_LIMITS[c.tipoBeca] || 0
+      const remaining = Math.max(0, limit - used)
+      const inst = (c.instituto || '')
+      const instClass = instClassMap[inst] || ''
+      return `
+        <tr data-client-id="${c.id}" class="grid-row ${instClass}" style="border-bottom:1px solid rgba(255,255,255,0.03)">
+          <td style="padding:8px 10px">${escapeHtml(c.nombreApellido)}</td>
+          <td style="padding:8px 10px">${escapeHtml(c.dni)}</td>
+          <td style="padding:8px 10px">${escapeHtml(c.carrera)}</td>
+          <td style="padding:8px 10px"><span class="grid-institute-badge ${instClass}">${escapeHtml(inst)}</span></td>
+          <td style="padding:8px 10px">${escapeHtml(c.tipoBeca)}</td>
+          <td style="padding:8px 10px">${escapeHtml(c.numeroOrden)}</td>
+          <td style="padding:8px 10px; text-align:right">${used} / ${limit}</td>
+          <td style="padding:8px 10px; text-align:right">${remaining}</td>
+        </tr>
+      `
+    }).join('')
+
+    tbody.innerHTML = rows
+
+    Array.from(tbody.querySelectorAll('tr[data-client-id]')).forEach(tr => {
+      tr.addEventListener('dblclick', () => {
+        const id = tr.getAttribute('data-client-id')
+        if (id) openEditClientModal(id)
+      })
+
+      tr.addEventListener('click', () => {
+        try {
+          const id = tr.getAttribute('data-client-id')
+          if (!id) return
+          const client = clients.find(c => c.id === id)
+          if (!client) return
+
+          closeModal('clientsGridModal')
+          const mainSearch = document.getElementById('searchInput')
+          const floating = document.getElementById('floatingSearchInput')
+          const term = (client.dni && client.dni.toString()) ? client.dni.toString() : client.nombreApellido
+          if (mainSearch) {
+            mainSearch.value = term
+            currentPage = 1
+            renderClients(term)
+          }
+          if (floating) floating.value = mainSearch ? mainSearch.value : ''
+          showToast('Cliente seleccionado: ' + (client.nombreApellido || ''), 'success')
+        } catch (err) {
+          console.error('Error seleccionando cliente desde grilla', err)
+        }
+      })
+    })
+  } catch (err) {
+    console.error('renderClientsGrid error', err)
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    const clientCountEl = document.getElementById('clientCount')
+    if (clientCountEl) {
+      clientCountEl.style.cursor = 'pointer'
+      clientCountEl.setAttribute('role', 'button')
+      clientCountEl.addEventListener('click', () => openClientsGridModal(''))
+    }
+
+    try {
+      const btnClearMain = document.getElementById('btnClearMainSearch')
+      const mainSearch = document.getElementById('searchInput')
+      if (btnClearMain && mainSearch) {
+        btnClearMain.addEventListener('click', () => {
+          mainSearch.value = ''
+          renderClients('')
+          const floating = document.getElementById('floatingSearchInput')
+          if (floating) floating.value = ''
+        })
+      }
+
+      const btnClearFloating = document.getElementById('btnClearFloatingSearch')
+      const floatingSearch = document.getElementById('floatingSearchInput')
+      if (btnClearFloating && floatingSearch) {
+        btnClearFloating.addEventListener('click', () => {
+          floatingSearch.value = ''
+          const main = document.getElementById('searchInput')
+          if (main) { main.value = ''; renderClients('') }
+        })
+      }
+
+      const btnClearGrid = document.getElementById('btnClearGridSearch')
+      if (btnClearGrid) {
+        btnClearGrid.addEventListener('click', () => {
+          const gridSearch = document.getElementById('clientsGridSearch')
+          if (gridSearch) gridSearch.value = ''
+          const selected = Array.from(document.querySelectorAll('.institute-filter')).find(b => b.classList.contains('btn-primary'))
+          const inst = selected ? (selected.getAttribute('data-inst') || '') : ''
+          renderClientsGrid(inst)
+        })
+      }
+    } catch (err) { /* ignore */ }
+
+    document.addEventListener('click', (e) => {
+      try {
+        const btn = e.target.closest && e.target.closest('.institute-filter')
+        if (!btn) return
+        const inst = btn.getAttribute('data-inst') || ''
+        document.querySelectorAll('.institute-filter').forEach(b => {
+          b.classList.remove('btn-primary')
+          b.classList.add('btn-secondary')
+          b.setAttribute('aria-pressed', 'false')
+        })
+        btn.classList.remove('btn-secondary')
+        btn.classList.add('btn-primary')
+        btn.setAttribute('aria-pressed', 'true')
+        renderClientsGrid(inst)
+      } catch (err) {  }
+    })
+
+    const btnExport = document.getElementById('btnExportClientsGrid')
+    if (btnExport) {
+      btnExport.addEventListener('click', async () => {
+        try {
+          const selected = Array.from(document.querySelectorAll('.institute-filter')).find(b => b.classList.contains('btn-primary'))
+          const inst = selected ? (selected.getAttribute('data-inst') || '') : ''
+          let clientsForPdf = [...clients]
+          if (inst) clientsForPdf = clientsForPdf.filter(c => (c.instituto || '') === inst)
+          if (!clientsForPdf || clientsForPdf.length === 0) {
+            showToast('No hay clientes para exportar con ese filtro', 'warning')
+            return
+          }
+          const blob = await createClientsPdfBlob({ instituto: inst || null, tipoBeca: null, clientsList: clientsForPdf })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          const sanitize = s => (s || '').toString().trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-()]/g, '')
+          const instPart = sanitize(inst || 'Todos')
+          a.download = `Base_de_datos_${instPart}.pdf`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+          showToast('PDF generado y descargado', 'success')
+        } catch (err) {
+          console.error('Error exportando grilla a PDF', err)
+          showToast('Error generando PDF: ' + (err && err.message ? err.message : ''), 'error')
+        }
+      })
+    }
+
+    try {
+      const gridSearch = document.getElementById('clientsGridSearch')
+      if (gridSearch) {
+        gridSearch.addEventListener('input', () => {
+          const selected = Array.from(document.querySelectorAll('.institute-filter')).find(b => b.classList.contains('btn-primary'))
+          const inst = selected ? (selected.getAttribute('data-inst') || '') : ''
+          renderClientsGrid(inst)
+        })
+      }
+    } catch (err) {  }
+  } catch (err) {
+    console.error('Inicialización clientsGrid listeners error', err)
+  }
+})
+
 window.openAddClientModal = openAddClientModal
 window.handleAddClient = handleAddClient
 window.openAddImpresionModal = openAddImpresionModal
@@ -2552,3 +3365,21 @@ window.confirmResetMonth = confirmResetMonth
 window.openStatsModal = openStatsModal
 window.openModal = openModal
 window.closeModal = closeModal
+window.openImportModal = openImportModal
+
+document.addEventListener('keydown', (e) => {
+  try {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      const actives = Array.from(document.querySelectorAll('.modal.active'))
+      if (!actives || actives.length === 0) return
+      actives.forEach((m) => {
+        try {
+          if (m && m.id) closeModal(m.id)
+          else if (m) m.classList.remove('active')
+        } catch (err) {
+        }
+      })
+    }
+  } catch (err) {
+  }
+})
