@@ -38,10 +38,45 @@ if (firebaseConfig && firebaseConfig.apiKey) {
   console.warn('Firebase no configurado en Main.js. Pega tu firebaseConfig en la variable firebaseConfig arriba.')
 }
 
-const BECA_LIMITS = {
-  A: 352,
-  B: 440,
-  C: 460,
+const BECA_DEFAULTS = { A: 352, B: 440, C: 460 }
+
+
+const BECA_MONTHLY_RULES = {
+  '2025-2': {
+    9: { A: 352, B: 440, C: 460 },
+    10: { A: 352, B: 440, C: 460 },
+    11: { A: 276, B: 352, C: 380 },
+    12: { A: 210, B: 276, C: 300 },
+  }
+}
+
+/**
+ * @param {string} tipoBeca 
+ * @param {Date} date 
+*/
+
+function getMonthlyLimit(tipoBeca, date) {
+  try {
+    const d = date instanceof Date ? date : new Date()
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1 
+
+
+    let cuatriIndex = null
+    if (month >= 2 && month <= 5) cuatriIndex = 1
+    else if (month >= 9 && month <= 12) cuatriIndex = 2
+
+    if (cuatriIndex) {
+      const key = `${year}-${cuatriIndex}`
+      const rules = BECA_MONTHLY_RULES[key]
+      if (rules && rules[month] && rules[month][tipoBeca]) return Number(rules[month][tipoBeca])
+    }
+
+
+    return Number(BECA_DEFAULTS[tipoBeca]) || 0
+  } catch (e) {
+    return Number(BECA_DEFAULTS[tipoBeca]) || 0
+  }
 }
 
 function isAuthenticated() {
@@ -1046,9 +1081,9 @@ function animateInitialCards(limit = 6) {
 
 function generateClientCardHtml(client) {
   const usedCarillas = getUsedCarillasThisMonth(client.id)
-  const limit = BECA_LIMITS[client.tipoBeca]
+  const limit = getMonthlyLimit(client.tipoBeca, new Date())
   const remaining = limit - usedCarillas
-  const percentage = (usedCarillas / limit) * 100
+  const percentage = limit > 0 ? (usedCarillas / limit) * 100 : 0
 
   let progressClass = ""
   if (percentage >= 90) progressClass = "danger"
@@ -1131,8 +1166,37 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 
 function setupEventListeners() {
-  document.getElementById("searchInput").addEventListener("input", (e) => {
-    renderClients(e.target.value)
+  // Debounced search to avoid heavy filtering on every keystroke (important for large datasets)
+  const searchInput = document.getElementById("searchInput")
+  const floatingInput = document.getElementById('floatingSearchInput')
+  const debounce = (fn, wait) => {
+    let t = null
+    return function(...args) {
+      clearTimeout(t)
+      t = setTimeout(() => fn.apply(this, args), wait)
+    }
+  }
+
+  const onSearchInput = debounce((e) => {
+    try { renderClients((e && e.target && e.target.value) ? e.target.value : (searchInput ? searchInput.value : '')) } catch (err) {}
+  }, 260)
+
+  if (searchInput) searchInput.addEventListener('input', onSearchInput)
+  if (floatingInput) floatingInput.addEventListener('input', onSearchInput)
+
+  // Keyboard shortcut (once): Ctrl/Cmd+F or K focuses the search input
+  document.addEventListener('keydown', (e) => {
+    try {
+      const isMod = e.ctrlKey || e.metaKey
+      if (isMod && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault()
+        if (searchInput) { searchInput.focus(); searchInput.select() }
+      }
+      if (!isMod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        if (searchInput) { searchInput.focus(); searchInput.select() }
+      }
+    } catch (err) {}
   })
 
   document.getElementById("turnoSelect").addEventListener("change", (e) => {
@@ -1313,11 +1377,12 @@ function setupEventListeners() {
     }
   })
 
-  const floatingInput = document.getElementById('floatingSearchInput')
+  const floatingInput2 = document.getElementById('floatingSearchInput')
   const mainSearch = document.getElementById('searchInput')
-  if (floatingInput && mainSearch) {
-    floatingInput.addEventListener('input', (e) => { mainSearch.value = e.target.value; renderClients(e.target.value) })
-    mainSearch.addEventListener('input', (e) => { floatingInput.value = e.target.value })
+  if (floatingInput2 && mainSearch) {
+    // Keep compatibility with floating input — use debounced handler if present
+    floatingInput2.addEventListener('input', (e) => { mainSearch.value = e.target.value; try { renderClients(e.target.value) } catch (err) {} })
+    mainSearch.addEventListener('input', (e) => { floatingInput2.value = e.target.value })
   }
 
   const backToTop = document.getElementById('backToTop')
@@ -1747,24 +1812,53 @@ async function setupFirebaseSync() {
     try {
       const snapImpres = await get(impresionesRef)
       const remoteImpres = snapImpres.exists() ? snapImpres.val() : null
-      console.log('RTDB: impresiones remotas leídas, exist:', !!remoteImpres, 'keys:', remoteImpres ? Object.keys(remoteImpres).length : 0)
+      console.log('RTDB: impresiones remotas leídas, exist:', !!remoteImpres)
+
+      // Si la estructura remota es null/empty y hay impresiones locales, subimos (particionadas)
       if ((!remoteImpres || Object.keys(remoteImpres).length === 0) && Array.isArray(impresiones) && impresiones.length > 0) {
         console.log('RTDB impresiones vacía y hay impresiones locales. Intentando subir', impresiones.length, 'registros...')
         let pushedI = 0
         let pushErrorsI = 0
         for (const im of impresiones) {
           try {
-            await set(ref(db, `impresiones/${im.id}`), im)
+            const d = new Date(im.fecha)
+            const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`
+            const payload = _serializeImpresionForDb(im)
+            await set(ref(db, `impresiones/${ym}/${im.id}`), payload)
             pushedI++
           } catch (e) {
-            pushErrorsI++
-            console.warn('Error subiendo impresion local a RTDB', im.id, e)
+            // fallback a ruta plana si falla
+            try { await set(ref(db, `impresiones/${im.id}`), im); pushedI++ } catch (e2) { pushErrorsI++; console.warn('Error subiendo impresion local a RTDB', im.id, e2) }
           }
         }
         console.log(`RTDB: impresiones subida finalizada. exitosos=${pushedI} errores=${pushErrorsI}`)
         if (pushErrorsI > 0) showToast(`Algunas impresiones no pudieron subirse a RTDB (ver consola)`, 'warning')
       } else if (remoteImpres && Object.keys(remoteImpres).length > 0 && impresiones.length === 0) {
-        impresiones = Object.keys(remoteImpres).map(k => ({ id: k, ...remoteImpres[k] }))
+        // La estructura remota puede ser plana o particionada por año-mes.
+        const keys = Object.keys(remoteImpres || {})
+        const looksLikePartitioned = keys.some(k => /^\d{4}-\d{2}$/.test(k))
+        const flat = []
+        if (looksLikePartitioned) {
+          // recorrer meses y juntar
+          for (const ym of keys) {
+            const monthNode = remoteImpres[ym]
+            if (!monthNode) continue
+            for (const id of Object.keys(monthNode)) {
+              const raw = monthNode[id]
+              const imp = _deserializeImpresionFromDb(raw, id)
+              flat.push(imp)
+            }
+          }
+        } else {
+          // estructura plana antigua
+          for (const id of keys) {
+            const raw = remoteImpres[id]
+            // soportar tanto formato compacto como completo
+            const maybe = _deserializeImpresionFromDb(raw, id)
+            flat.push(maybe)
+          }
+        }
+        impresiones = flat
         localStorage.setItem('becaImpresiones', JSON.stringify(impresiones))
       }
     } catch (err) {
@@ -1785,8 +1879,28 @@ async function setupFirebaseSync() {
     onValue(impresionesRef, (snapshot) => {
       const val = snapshot.exists() ? snapshot.val() : null
       if (!val) return
-      const remoteImpres = Object.keys(val).map(k => ({ id: k, ...val[k] }))
-      impresiones = remoteImpres
+      // detectar si la estructura es particionada por año-mes
+      const topKeys = Object.keys(val || {})
+      let flat = []
+      const looksLikePartitioned = topKeys.some(k => /^\d{4}-\d{2}$/.test(k))
+      if (looksLikePartitioned) {
+        for (const ym of topKeys) {
+          const monthNode = val[ym]
+          if (!monthNode) continue
+          for (const id of Object.keys(monthNode)) {
+            const raw = monthNode[id]
+            const imp = _deserializeImpresionFromDb(raw, id)
+            flat.push(imp)
+          }
+        }
+      } else {
+        for (const id of topKeys) {
+          const raw = val[id]
+          const imp = _deserializeImpresionFromDb(raw, id)
+          flat.push(imp)
+        }
+      }
+      impresiones = flat
       console.log('RTDB onValue: impresiones actualizadas desde remoto, total=', impresiones.length)
       localStorage.setItem('becaImpresiones', JSON.stringify(impresiones))
       setSyncStatus('online')
@@ -1940,9 +2054,27 @@ async function deleteClientFromFirestore(clientId) {
       const snap = await get(ref(db, 'impresiones'))
       if (snap && snap.exists()) {
         const val = snap.val()
-        for (const k of Object.keys(val)) {
-          if (val[k] && val[k].clienteId === clientId) {
-            try { await remove(ref(db, `impresiones/${k}`)) } catch (e) { console.warn('Error eliminando impresion asociada', e) }
+        const topKeys = Object.keys(val || {})
+        const looksLikePartitioned = topKeys.some(k => /^\d{4}-\d{2}$/.test(k))
+        if (looksLikePartitioned) {
+          for (const ym of topKeys) {
+            const monthNode = val[ym]
+            if (!monthNode) continue
+            for (const id of Object.keys(monthNode)) {
+              const raw = monthNode[id]
+              const clienteId = raw && (raw.c || raw.clienteId)
+              if (clienteId === clientId) {
+                try { await remove(ref(db, `impresiones/${ym}/${id}`)) } catch (e) { console.warn('Error eliminando impresion asociada', e) }
+              }
+            }
+          }
+        } else {
+          for (const k of Object.keys(val)) {
+            const raw = val[k]
+            const clienteId = raw && (raw.clienteId || raw.c)
+            if (clienteId === clientId) {
+              try { await remove(ref(db, `impresiones/${k}`)) } catch (e) { console.warn('Error eliminando impresion asociada', e) }
+            }
           }
         }
         console.log('Impresiones asociadas eliminadas en RTDB para cliente:', clientId)
@@ -1965,10 +2097,20 @@ async function saveImpresionToFirestore(imp) {
   }
   const { db, ref, set } = window.AppFirebase
   try {
-    await set(ref(db, `impresiones/${imp.id}`), imp)
-    console.log('Impresion guardada en RTDB:', imp.id)
+    // particionamos por año-mes para mantener la raíz más pequeña y facilitar archivado
+    const d = new Date(imp.fecha)
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`
+    const payload = _serializeImpresionForDb(imp)
+    await set(ref(db, `impresiones/${ym}/${imp.id}`), payload)
+    console.log('Impresion guardada en RTDB (particionada):', `${ym}/${imp.id}`)
   } catch (err) {
-    console.error('Error guardando impresion en RTDB', err)
+    // fallback a estructura plana antigua
+    try {
+      await set(ref(db, `impresiones/${imp.id}`), imp)
+      console.log('Impresion guardada en RTDB (plana fallback):', imp.id)
+    } catch (err2) {
+      console.error('Error guardando impresion en RTDB (particionada y fallback)', err2)
+    }
   }
 }
 
@@ -1979,10 +2121,53 @@ async function deleteImpresionFromFirestore(id) {
   }
   const { db, ref, remove } = window.AppFirebase
   try {
+    // intentamos eliminar en la nueva estructura particionada por año-mes
+    try {
+      // buscar localmente para obtener el año-mes
+      const local = (impresiones || []).find(i => i.id === id)
+      if (local && local.fecha) {
+        const d = new Date(local.fecha)
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`
+        await remove(ref(db, `impresiones/${ym}/${id}`))
+        console.log('Impresion eliminada en RTDB (particionada):', `${ym}/${id}`)
+        return
+      }
+    } catch (e) {
+      console.warn('deleteImpresionFromFirestore: no se pudo borrar en particionada, intentando ruta plana', e)
+    }
+
+    // fallback: eliminar en la estructura plana antigua
     await remove(ref(db, `impresiones/${id}`))
-    console.log('Impresion eliminada en RTDB:', id)
+    console.log('Impresion eliminada en RTDB (plana):', id)
   } catch (err) {
     console.error('Error eliminando impresion en RTDB', err)
+  }
+}
+
+/**
+ * Helpers para almacenar impresiones en formato compacto en RTDB
+ * Esto reduce el tamaño por registro (claves cortas) y permite particionar por año-mes.
+ */
+function _serializeImpresionForDb(imp) {
+  // imp: { id, clienteId, cantidad, fecha, turno, monto }
+  return {
+    c: imp.clienteId, // clienteId
+    q: imp.cantidad,  // cantidad (quantity)
+    d: imp.fecha,     // date ISO
+    t: imp.turno,     // turno
+    m: imp.monto      // monto
+  }
+}
+
+function _deserializeImpresionFromDb(obj, id) {
+  if (!obj) return null
+  return {
+    id: id || (obj.id || (Date.now().toString() + Math.random().toString(36).slice(2,7))),
+    clienteId: obj.c || obj.clienteId || '',
+    cantidad: Number(obj.q || obj.cantidad || 0),
+    fecha: obj.d || obj.fecha || new Date().toISOString(),
+    turno: obj.t || obj.turno || '',
+    monto: Number(typeof obj.m !== 'undefined' ? obj.m : (obj.monto || 0))
   }
 }
 
@@ -2201,7 +2386,7 @@ function openAddImpresionModal(clientId) {
   if (!client) return
 
   const usedCarillas = getUsedCarillasThisMonth(clientId)
-  const limit = BECA_LIMITS[client.tipoBeca]
+  const limit = getMonthlyLimit(client.tipoBeca, new Date())
   const remaining = limit - usedCarillas
 
   document.getElementById("impresionClientId").value = clientId
@@ -2240,7 +2425,7 @@ function validateImpresionAmount() {
   if (!client) return
 
   const usedCarillas = getUsedCarillasThisMonth(clientId)
-  const limit = BECA_LIMITS[client.tipoBeca]
+  const limit = getMonthlyLimit(client.tipoBeca, new Date())
   const remaining = limit - usedCarillas
 
   const warningMessage = document.getElementById("warningMessage")
@@ -2309,7 +2494,7 @@ function handleAddImpresion(event) {
   if (!client) return
 
   const usedCarillas = getUsedCarillasThisMonth(clientId)
-  const limit = BECA_LIMITS[client.tipoBeca]
+  const limit = getMonthlyLimit(client.tipoBeca, new Date())
   const remaining = limit - usedCarillas
 
   if (cantidad > remaining) {
@@ -2954,7 +3139,8 @@ function confirmResetMonth() {
 }
 
 function renderClients(searchTerm = "") {
-  let filteredClients = [...clients]
+  // Avoid unnecessary full-copy of the clients array (costly for large datasets)
+  let filteredClients = clients
 
   if (searchTerm) {
     const term = searchTerm.toLowerCase()
@@ -2980,18 +3166,6 @@ function renderClients(searchTerm = "") {
       copyToClipboard(dni)
       showToast('DNI copiado al portapapeles', 'success')
     }
-
-    document.addEventListener('keydown', (e) => {
-      const isMod = e.ctrlKey || e.metaKey
-      if (isMod && (e.key === 'f' || e.key === 'F' || e.key === 'k' || e.key === 'K')) {
-        e.preventDefault()
-        const input = document.getElementById('searchInput')
-        if (input) {
-          input.focus()
-          input.select()
-        }
-      }
-    })
 
     window.copyDNI = copyDNI
 
@@ -3054,7 +3228,14 @@ function renderClients(searchTerm = "") {
 
   clientsList.classList.remove('empty')
 
-  const firstRects = Array.from(clientsList.children).map(el => el.getBoundingClientRect())
+  // Don't compute layout diffs for very large lists: expensive on low-end machines.
+  // Only compute rects when the children count matches the number we'll render and is reasonably small.
+  let firstRects = []
+  try {
+    if (clientsList.children.length === toRender.length && toRender.length <= 50) {
+      firstRects = Array.from(clientsList.children).map(el => el.getBoundingClientRect())
+    }
+  } catch (e) { firstRects = [] }
 
 
   const totalItems = filteredClients.length
@@ -3072,26 +3253,37 @@ function renderClients(searchTerm = "") {
 
   const html = toRender.map((client) => generateClientCardHtml(client)).join("")
 
-  clientsList.innerHTML = html
+  // If trying to render everything and it's very large, cap to avoid freezing the UI.
+  if (showAllClients && filteredClients.length > 1500) {
+    const safeCount = 1500
+    showToast(`Mostrando los primeros ${safeCount} de ${filteredClients.length} resultados para preservar rendimiento. Use filtros o paginación.`, 'warning')
+    clientsList.innerHTML = filteredClients.slice(0, safeCount).map(c => generateClientCardHtml(c)).join("")
+  } else {
+    clientsList.innerHTML = html
+  }
 
-  const newChildren = Array.from(clientsList.children)
-  const lastRects = newChildren.map(el => el.getBoundingClientRect())
-
-  newChildren.forEach((el, i) => {
-    const first = firstRects[i]
-    const last = lastRects[i]
-    if (!first || !last) return
-    const dx = first.left - last.left
-    const dy = first.top - last.top
-    if (dx || dy) {
-      el.style.transform = `translate(${dx}px, ${dy}px)`
-      el.style.transition = 'transform 0s'
-      requestAnimationFrame(() => {
-        el.style.transition = 'transform 300ms cubic-bezier(.2,.8,.2,1)'
-        el.style.transform = ''
+  // Only run the enter animation when we computed firstRects (small lists)
+  try {
+    if (firstRects && firstRects.length > 0) {
+      const newChildren = Array.from(clientsList.children)
+      const lastRects = newChildren.map(el => el.getBoundingClientRect())
+      newChildren.forEach((el, i) => {
+        const first = firstRects[i]
+        const last = lastRects[i]
+        if (!first || !last) return
+        const dx = first.left - last.left
+        const dy = first.top - last.top
+        if (dx || dy) {
+          el.style.transform = `translate(${dx}px, ${dy}px)`
+          el.style.transition = 'transform 0s'
+          requestAnimationFrame(() => {
+            el.style.transition = 'transform 300ms cubic-bezier(.2,.8,.2,1)'
+            el.style.transform = ''
+          })
+        }
       })
     }
-  })
+  } catch (e) { /* ignore animation errors */ }
 
   const btnShowAll = document.getElementById('btnShowAllClients')
   if (btnShowAll) {
@@ -3458,8 +3650,8 @@ function renderClientsGrid(instituto = '') {
     const instClassMap = { 'Salud': 'instituto-salud', 'Sociales': 'instituto-sociales', 'Ingeniería': 'instituto-ingenieria' }
 
     const rows = filtered.map(c => {
-      const used = getUsedCarillasThisMonth(c.id)
-      const limit = BECA_LIMITS[c.tipoBeca] || 0
+  const used = getUsedCarillasThisMonth(c.id)
+  const limit = getMonthlyLimit(c.tipoBeca, new Date()) || 0
       const remaining = Math.max(0, limit - used)
       const inst = (c.instituto || '')
       const instClass = instClassMap[inst] || ''

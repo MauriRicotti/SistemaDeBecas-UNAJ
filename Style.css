@@ -107,7 +107,7 @@ body {
 
 #pageSizeLabel, #clientCount {
   background: var(--bg-card);
-  /* usar el mismo padding que los botones .btn para igualar alturas */
+ 
   padding: 0.75rem 1.25rem;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.04);
@@ -443,7 +443,7 @@ body {
   border-color: var(--blue-primary);
 }
 
-/* Botones "Limpiar" al lado de inputs: ajustar altura y alineación para coincidir con los inputs */
+
 #btnClearMainSearch, #btnClearFloatingSearch, #btnClearGridSearch {
   height: 36px;
   padding: 6px 10px;
@@ -453,7 +453,7 @@ body {
   border-radius: 6px;
 }
 
-/* Hacer que las filas de la grilla sean claramente clickeables (cursor) */
+
 #clientsGridTable tr.grid-row {
   cursor: pointer;
 }
@@ -663,25 +663,146 @@ body {
 
 .beca-badge {
   display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: 0.18rem 0.5rem;
+  border-radius: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+  border: 1px solid rgba(0,0,0,0.06);
+ 
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-.beca-a {
-  background-color: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+
+.beca-a { background-color: #2563eb; background-image: none; }
+.beca-b { background-color: #059669; background-image: none; }
+.beca-c { background-color: #e14b4b; background-image: none; }
+
+
+:root[data-theme="light"] .beca-badge {
+  color: #0b1220;
+  border: 1px solid rgba(11,18,32,0.06);
 }
 
-.beca-b {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+:root[data-theme="light"] .beca-a { background-color: #dbeafe}
+:root[data-theme="light"] .beca-b { background-color: #d1fae5;}
+:root[data-theme="light"] .beca-c { background-color: #ffe8d6;}
+
+:root[data-theme="dark"] .beca-badge {
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.04);
 }
 
-.beca-c {
-  background-color: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
+:root[data-theme="dark"] .beca-a { background-color: #2563eb; }
+:root[data-theme="dark"] .beca-b { background-color: #059669; }
+:root[data-theme="dark"] .beca-c { background-color: #e14b4b; }
+
+
+.beca-info-card .card-header { display:flex; align-items:center; gap:0.6rem; }
+.beca-info-card .card-header h3 { margin:0; font-size:1rem; text-align:left; }
+.beca-info-card .card-header .card-subtitle { font-size:0.85rem; color:var(--text-muted); text-align:left; }
+
+
+.limit-line { display:flex; align-items:center; gap:0.6rem; }
+.limit-line .month { font-size:0.95rem; color:var(--text-primary); white-space:nowrap; }
+.limit-line .dots { flex:1; height:1px; border-bottom: 1px dotted var(--text-muted); opacity:0.9; }
+.limit-line .num { font-weight:700; color:var(--text-primary); white-space:nowrap; margin-left:0.5rem; }
+
+
+.beca-info-card {
+ 
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+
+:root[data-theme="light"] #becasInfoWrapper .beca-info-card,
+:root[data-theme="light"] #becasInfoWrapper .beca-info-card .card,
+:root[data-theme="light"] #becasInfoWrapper .card,
+:root[data-theme="light"] #becasInfoWrapper .info-grid .card {
+  background: #ffffff;
+  color: var(--text-primary);
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 1px 2px rgba(16,24,40,0.03);
+}
+
+:root[data-theme="light"] #becasInfoWrapper .beca-info-card .card-header h3,
+:root[data-theme="light"] #becasInfoWrapper .beca-info-card .card-subtitle,
+:root[data-theme="light"] #becasInfoWrapper .info-grid .card .month,
+:root[data-theme="light"] #becasInfoWrapper .info-grid .card .num {
+  color: var(--text-primary);
+  opacity: 0.95;
+}
+
+
+:root[data-theme="light"] #becasInfoWrapper > .card {
+  background: #ffffff;
+  color: var(--text-primary);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+
+:root[data-theme="light"] #toggleBecasContainer .btn {
+  background: #ffffff;
+  color: var(--text-primary);
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: none;
+}
+
+
+:root[data-theme="dark"] #becasInfoWrapper .beca-info-card,
+:root[data-theme="dark"] #becasInfoWrapper .info-grid .card {
+ 
+  background-color: #1E293B;
+  background-image: none;
+  color: var(--text-primary);
+  border: 1px solid rgba(255,255,255,0.04);
+ 
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+}
+
+
+#becasInfoWrapper {
+  overflow: hidden;
+  transition: max-height 320ms cubic-bezier(.2,.8,.2,1), opacity 260ms ease;
+  max-height: 0;
+  opacity: 0;
+}
+#becasInfoWrapper.expanded {
+  opacity: 1;
+ 
+  max-height: 2000px;
+}
+#becasInfoWrapper.collapsed {
+  opacity: 0;
+  max-height: 0;
+}
+
+
+.toggle-becas-container { display:flex; justify-content:center; margin:8px 0 18px 0; }
+.toggle-becas-container .btn { min-width: 260px; }
+
+
+.beca-info-card .card-header {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.1rem 0.1rem 0.6rem 0.6rem;
+}
+.beca-info-card .card-header > div { display:block; }
+.beca-info-card .card-header h3 { font-weight:700; text-align:left; margin:0; }
+.beca-info-card .card-header .card-subtitle { margin-top:4px; text-align:left; }
+
+
+.beca-info-card .card-header .beca-a,
+.beca-info-card .card-header .beca-b,
+.beca-info-card .card-header .beca-c {
+  width:10px; height:36px; border-radius:6px; display:inline-block; flex:0 0 auto; margin-right:6px;
 }
 
 .progress-section {
@@ -741,11 +862,9 @@ body {
   padding: 2rem;
 }
 
-/* En tema claro no queremos un overlay tan oscuro que "grise" las tarjetas
-   Usamos un overlay sutil y una sombra más pronunciada en el modal para
-   mantener contraste sin cambiar drásticamente los colores de fondo. */
+
 :root[data-theme="light"] .modal {
-  background-color: rgba(16, 24, 40, 0.06); /* muy sutil */
+  background-color: rgba(16, 24, 40, 0.06);
 }
 
 :root[data-theme="light"] .modal .modal-content {
@@ -825,7 +944,7 @@ body {
 
 
 .modal-content.modal-large {
-  /* Aumentamos el ancho máximo en escritorio para que la tabla del modal tenga más espacio */
+ 
   max-width: 1100px;
   width: calc(100% - 48px);
   margin: 18px auto;
@@ -876,13 +995,13 @@ body {
 
 
 #clientsGridTable tr.grid-row:hover {
-  /* más visible en tema oscuro */
+ 
   background: rgba(255,255,255,0.03);
 }
 
-/* En tema claro el hover necesita mayor contraste para notarse */
+
 :root[data-theme="light"] #clientsGridTable tr.grid-row:hover {
-  background: rgba(16,24,40,0.04); /* ligero gris oscuro sobre fondo claro */
+  background: rgba(16,24,40,0.04);
 }
 
 @media (max-width: 600px) {
@@ -1440,9 +1559,9 @@ body.modal-open {
   background: var(--bg-hover);
 }
 
-/* ---------- Ajustes móviles: apilar controles en modal y en la barra de búsqueda ---------- */
+
 @media (max-width: 600px) {
-  /* Modal: apilar controles de la cabecera del modal para que no compriman la tabla */
+ 
   .clients-grid-controls {
     flex-direction: column;
     align-items: stretch;
@@ -1464,7 +1583,7 @@ body.modal-open {
     margin-left: 0;
   }
 
-  /* Asegurar que la búsqueda del modal y su botón Limpiar ocupen líneas separadas */
+ 
   #clientsGridSearch {
     width: 100% !important;
     box-sizing: border-box;
@@ -1474,26 +1593,26 @@ body.modal-open {
     box-sizing: border-box;
   }
 
-  /* Barra de búsqueda principal: apilar input y botón Limpiar */
+ 
   .search-body .search-input-wrapper {
     flex-direction: column !important;
     align-items: stretch;
     gap: 0.5rem;
     height: auto !important;
   }
-  /* Input ocupa toda la línea */
+ 
   .search-body .search-input-wrapper .search-input {
     width: 100%;
     box-sizing: border-box;
     padding: 0.75rem 1rem;
   }
-  /* Botón Limpiar de la tarjeta Buscar Estudiante */
+ 
   #btnClearMainSearch {
     width: 100% !important;
     box-sizing: border-box;
   }
 
-  /* Floating search: apilar internamente para evitar solapamientos en móviles pequeños */
+ 
   .floating-search .floating-search-inner {
     flex-direction: column;
     gap: 0.4rem;
@@ -1504,8 +1623,7 @@ body.modal-open {
   }
 }
 
-/* Reglas específicas y contundentes para la búsqueda flotante en móviles
-   (se colocan al final para sobrescribir duplicados más arriba) */
+
 @media (max-width: 600px) {
   .floating-search {
     left: 50% !important;
@@ -1541,11 +1659,11 @@ body.modal-open {
     padding: 0.6rem 0.85rem !important;
   }
 
-  /* Ajuste del icono para que no haga overflow */
+ 
   .floating-search .svg-icon { flex: 0 0 auto; }
 }
 
-/* Compact floating-search layout: icon + input + small X button on single line for mobile */
+
 @media (max-width: 600px) {
   .floating-search .floating-search-inner {
     display: flex !important;
@@ -1557,14 +1675,14 @@ body.modal-open {
 
   .floating-search input.search-input {
     flex: 1 1 auto !important;
-    min-width: 0 !important; /* allow shrinking in flex */
+    min-width: 0 !important;
     padding: 0.45rem 0.6rem !important;
     border-radius: 8px !important;
     border: 1px solid var(--border-color) !important;
     background: transparent !important;
   }
 
-  /* Small square button with X icon to save horizontal space */
+ 
   #btnClearFloatingSearch {
     width: 36px !important;
     height: 36px !important;
@@ -1579,7 +1697,7 @@ body.modal-open {
   .btn-clear-icon svg { width: 16px; height: 16px; }
 }
 
-/* Específico: apilar input, botón Limpiar y texto de ayuda en el modal de listado */
+
 @media (max-width: 600px) {
   .clients-grid-search-row {
     flex-direction: column !important;
@@ -2088,8 +2206,7 @@ input[type="file"]::-webkit-file-upload-button:hover {
   border-radius: 0.5rem;
 }
 
-/* Uniformizar altura y apariencia de los controles en la cabecera de la sección
-   (Botón Filtros, bloque Mostrar (pageSize) y botón Estudiantes) */
+
 .clients-header-actions > * {
   display: inline-flex;
   align-items: center;
@@ -2667,15 +2784,23 @@ body {
 
 
 .beca-badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
+  display: inline-block; 
+  padding: 6px 10px; 
+  border-radius: 8px; 
+  font-weight: 600; 
+  font-size: 0.82rem; 
+  line-height: 1; 
+  color: #fff; 
+  box-shadow: none; 
+  border: 1px solid rgba(0,0,0,0.06); 
 
-.beca-a {
-  background-color: rgba(59, 130, 246, 0.2);
+
+.beca-a { background-color: #f6b63a; color: #07202a; box-shadow:none; background-image:none; }
+.beca-b { background-color: #6fd3ff; color: #042428; box-shadow:none; background-image:none; }
+.beca-c { background-color: #ff8796; color: #2b0b12; box-shadow:none; background-image:none; }
+
+
+.beca-badge.beca-a, .beca-badge.beca-b, .beca-badge.beca-c { padding:5px 8px; font-size:0.8rem; }
   color: #60a5fa;
 }
 
@@ -3136,3 +3261,216 @@ body {
 @media print {
   .site-footer { display: none !important }
 }
+
+
+.info-grid { margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.beca-info-card { padding: 0; overflow: hidden; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-color); }
+.beca-info-card .card-header { padding: 0.7rem 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.03); display:flex; align-items:center; gap:0.6rem; }
+.beca-info-card .card-header h3 { margin: 0; font-size: 1rem; }
+.beca-info-card .card-header div { color: var(--text-muted); font-size:0.85rem }
+.beca-info-card table { width:100%; border-collapse: collapse; }
+.beca-info-card table td { padding:6px 6px; color: var(--text-primary); }
+
+
+
+.beca-a { background-color: #f6b63a !important; }
+.beca-b { background-color: #6fd3ff !important; }
+.beca-c { background-color: #ff8796 !important; }
+
+
+@media (max-width: 1024px) {
+  .info-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.9rem !important; }
+  .beca-info-card { padding: 0.9rem !important; }
+}
+
+@media (max-width: 600px) {
+  .info-grid { grid-template-columns: 1fr !important; gap: 0.8rem !important; }
+  .info-grid .card, .info-grid .beca-info-card { width: 100% !important; margin: 0 !important; box-sizing: border-box !important; }
+  .beca-info-card .card-header h3 { font-size: 0.98rem; }
+  .beca-info-card .card-header .card-subtitle { font-size: 0.88rem; }
+}
+
+
+:root[data-theme="light"] {
+ 
+  --bg-primary: #f3f6f9;     
+  --bg-secondary: #eef4f8;   
+  --bg-card: #f7fafc;        
+  --bg-hover: #e6eef6;       
+
+ 
+  --text-primary: #071422;   
+  --text-secondary: #334155; 
+  --text-muted: #5b6b77;     
+
+ 
+  --border-color: rgba(7,20,35,0.08);
+  --shadow: 0 8px 20px rgba(7,20,35,0.04);
+}
+
+
+:root[data-theme="light"] .search-card,
+:root[data-theme="light"] .client-card,
+:root[data-theme="light"] .clients-card,
+:root[data-theme="light"] .beca-info-card,
+:root[data-theme="light"] .card {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+
+:root[data-theme="light"] .floating-search {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 10px 30px rgba(7,20,35,0.05) !important;
+}
+
+
+:root[data-theme="light"] .modal {
+  background-color: rgba(7,20,35,0.06) !important;
+}
+:root[data-theme="light"] .modal .modal-content {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 28px 40px rgba(7,20,35,0.06) !important;
+}
+
+
+:root[data-theme="light"] .form-group input,
+:root[data-theme="light"] .form-group select,
+:root[data-theme="light"] .search-input,
+:root[data-theme="light"] #pageSizeLabel select {
+  background: #ffffff;
+  color: var(--text-primary);
+  border: 1px solid rgba(7,20,35,0.06);
+}
+
+
+:root[data-theme="light"] .btn-secondary:hover,
+:root[data-theme="light"] .search-input:focus {
+  background: var(--bg-hover) !important;
+  border-color: var(--blue-primary) !important;
+}
+
+
+:root[data-theme="light"] .badge,
+:root[data-theme="light"] .btn-icon,
+:root[data-theme="light"] .icon-btn,
+:root[data-theme="light"] .toast {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+
+:root[data-theme="light"] #becasInfoWrapper .beca-info-card,
+:root[data-theme="light"] #becasInfoWrapper .card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+
+:root[data-theme="light"] .limit-line .dots {
+  border-bottom-color: rgba(7,20,35,0.06) !important;
+}
+
+
+:root[data-theme="light"] .turno-selector.turno-attention::after {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+
+:root[data-theme="light"] #clientsGridTable tr.grid-row:hover {
+  background: rgba(7,20,35,0.03) !important;
+}
+
+
+
+
+.modal-content.modal-small {
+  width: calc(100% - 20px);
+  max-width: 480px;
+  margin: 12px auto;
+  box-sizing: border-box;
+}
+
+
+#changePasswordModal .modal-content .form-group > div {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+
+#changePasswordModal .modal-content .form-group input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.55rem;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+
+#changePasswordModal .modal-content .form-group .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0.45rem 0.7rem;
+  min-width: 84px;
+}
+
+
+#changePasswordModal .modal-content .form-group > #currentVerifyMsg,
+#changePasswordModal .modal-content .form-group > #newPwdHelp {
+  width: 100%;
+}
+
+
+@media (max-width: 520px) {
+  #changePasswordModal .modal-footer {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  #changePasswordModal .modal-footer .btn {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem;
+  }
+
+ 
+  #changePasswordModal .modal-content form {
+    padding: 0.6rem;
+  }
+
+  
+  #changePasswordModal .modal-content .form-group button[title],
+  #changePasswordModal .modal-content .form-group #btnVerifyCurrent {
+    padding: 0.45rem 0.6rem;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 380px) {
+  .modal-content.modal-small {
+    width: calc(100% - 14px);
+    max-width: calc(100% - 14px);
+    border-radius: 10px;
+  }
+
+  #changePasswordModal .modal-content .form-group .btn {
+    min-width: 56px;
+  }
+}
+
+#changePasswordModal.modal.active {
+  align-items: flex-start;
+  padding-top: 10px;
+}
+
+

@@ -25,6 +25,7 @@
         </script>
         <link rel="stylesheet" href="Style.css">
     <link rel="stylesheet" href="footer.css">
+    <!-- Fixes responsive modal (mobile) - reglas movidas a Style.css -->
         <link rel="icon" href="Imagenes - Web Becas/unaj-removebg-preview becas2png.png" type="image/png">
     </head>
     <body>
@@ -144,8 +145,88 @@
                         <div id="pagination" aria-label="Paginación"></div>
                         <div id="paginationHint" style="margin-top:8px; font-size:0.82rem; color:var(--text-muted);">Atajo: Ctrl ← / Ctrl → para navegar páginas</div>
                     </div>
+                    
             </section>
-            
+            <div id="toggleBecasContainer" class="toggle-becas-container" aria-hidden="false">
+                <button id="toggleBecasInfoBtn" class="btn btn-secondary" aria-expanded="false">Desplegar información sobre Becas</button>
+            </div>
+            <section style="margin-top:18px;">
+                <div id="becasInfoWrapper" class="collapsible collapsed" aria-hidden="true">
+                <div style="margin-bottom:0.6rem;">
+                    <h2 style="margin:0 0 8px 0; font-size:1.1rem; font-weight:700;">Información de Becas</h2>
+                    <div style="color:var(--text-muted); font-size:0.95rem;">Límites mensuales por tipo — 2do cuatrimestre 2025 (septiembre - diciembre)</div>
+                </div>
+                <div class="info-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; align-items:start;">
+                    <div class="card beca-info-card">
+                        <div class="card-header" style="display:flex; align-items:center; gap:0.6rem;">
+                            <div class="beca-a" style="width:10px; height:36px; border-radius:6px; display:inline-block;"></div>
+                            <div>
+                                <h3 style="margin:0; font-size:1rem;">Beca Tipo A</h3>
+                                <div class="card-subtitle" style="font-size:0.85rem; margin-top: -4px;">Carillas por mes (2do cuatrimestre 2025)</div>
+                            </div>
+                        </div>
+                        <div style="padding:0.8rem;">
+                            <table style="width:100%; font-size:0.95rem; border-collapse:collapse;">
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Septiembre</span><span class="dots"></span><span class="num">352</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Octubre</span><span class="dots"></span><span class="num">352</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Noviembre</span><span class="dots"></span><span class="num">276</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Diciembre</span><span class="dots"></span><span class="num">210</span></div></td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card beca-info-card">
+                        <div class="card-header" style="display:flex; align-items:center; gap:0.6rem;">
+                            <div class="beca-b" style="width:10px; height:36px; border-radius:6px; display:inline-block;"></div>
+                            <div>
+                                <h3 style="margin:0; font-size:1rem;">Beca Tipo B</h3>
+                                <div class="card-subtitle" style="font-size:0.85rem; margin-top: -4px;">Carillas por mes (2do cuatrimestre 2025)</div>
+                            </div>
+                        </div>
+                        <div style="padding:0.8rem;">
+                            <table style="width:100%; font-size:0.95rem; border-collapse:collapse;">
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Septiembre</span><span class="dots"></span><span class="num">440</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Octubre</span><span class="dots"></span><span class="num">440</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Noviembre</span><span class="dots"></span><span class="num">352</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Diciembre</span><span class="dots"></span><span class="num">276</span></div></td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card beca-info-card">
+                        <div class="card-header" style="display:flex; align-items:center; gap:0.6rem;">
+                            <div class="beca-c" style="width:10px; height:36px; border-radius:6px; display:inline-block;"></div>
+                            <div>
+                                <h3 style="margin:0; font-size:1rem;">Beca Tipo C</h3>
+                                <div class="card-subtitle" style="font-size:0.85rem; margin-top: -4px;">Carillas por mes (2do cuatrimestre 2025)</div>
+                            </div>
+                        </div>
+                        <div style="padding:0.8rem;">
+                            <table style="width:100%; font-size:0.95rem; border-collapse:collapse;">
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Septiembre</span><span class="dots"></span><span class="num">460</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Octubre</span><span class="dots"></span><span class="num">460</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Noviembre</span><span class="dots"></span><span class="num">380</span></div></td></tr>
+                                <tr><td style="padding:6px 4px"><div class="limit-line"><span class="month">Diciembre</span><span class="dots"></span><span class="num">300</span></div></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top:1rem;">
+                    <div class="card-header"><h3 style="margin:0;">Reglas y condiciones de uso</h3></div>
+                    <div style="padding:0.9rem; color:var(--text-secondary); line-height:1.45;">
+                        <ul style="margin:0 0 0 1.1rem;">
+                            <li>Las carillas se renuevan el día 1 de cada mes y <strong>no son acumulativas</strong>.</li>
+                            <li>La beca cubre únicamente material de estudio propio de la carrera del titular.</li>
+                            <li>El titular debe presentarse presencialmente con su beca/documento para poder utilizarla. No se aceptan terceros.</li>
+                            <li>No se permiten pagos en efectivo ni transferencias en el copiado para completar servicios de beca.</li>
+                            <li>La beca no es válida para anillados ni para copias a color.</li>
+                        </ul>
+                    </div>
+                </div>
+                </div> 
+            </section>
+
             <footer class="site-footer" role="contentinfo">
                 <div class="footer-watermark">Sistema diseñado y desarrollado por Mauricio Ricotti</div>
             </footer>
@@ -285,6 +366,14 @@
                     <div><span>Tipo de Beca:</span> <span id="impresionBecaType"></span></div>
                     <div><span>Límite Mensual:</span> <span id="impresionLimit"></span></div>
                     <div><span>Carillas Restantes:</span> <span id="impresionRemaining"></span></div>
+                </div>
+                <div style="padding:0 0.8rem 0.8rem; color:var(--text-secondary); font-size:0.9rem;">
+                    <strong>Condiciones de uso:</strong>
+                    <ul style="margin:6px 0 0 1.1rem; padding:0;">
+                        <li>Presentar la beca en mano (titular). No se aceptan terceros.</li>
+                        <li>No válido para anillados ni copias a color.</li>
+                        <li>No se aceptan pagos en efectivo ni transferencias para completar copias con beca.</li>
+                    </ul>
                 </div>
                 <form id="addImpresionForm" onsubmit="handleAddImpresion(event)">
                     <input id="impresionClientId" type="hidden">
@@ -497,6 +586,94 @@
                             </div>
                         </div>
                     </div>
+
+                    <script>
+                        (function(){
+                            const openText = 'Ocultar información sobre Becas';
+                            const closeText = 'Desplegar información sobre Becas';
+                            let resizeTimer = null;
+
+                            function initToggle(){
+                                const btn = document.getElementById('toggleBecasInfoBtn');
+                                const wrapper = document.getElementById('becasInfoWrapper');
+                                const toggleContainer = document.getElementById('toggleBecasContainer');
+                                const clientsCard = document.querySelector('.clients-card');
+                                if(!btn || !wrapper || !toggleContainer || !clientsCard) return;
+
+                                // Sync the toggle container width to match the clients card
+                                function syncWidth(){
+                                    try{
+                                        const w = clientsCard.getBoundingClientRect().width;
+                                        toggleContainer.style.width = w + 'px';
+                                        toggleContainer.style.margin = '0 auto';
+                                    }catch(e){}
+                                }
+
+                                // initial sync
+                                syncWidth();
+                                window.addEventListener('resize', function(){
+                                    clearTimeout(resizeTimer);
+                                    resizeTimer = setTimeout(syncWidth, 120);
+                                });
+
+                                // Ensure initial state
+                                btn.setAttribute('aria-expanded', 'false');
+                                wrapper.classList.add('collapsed');
+                                wrapper.style.maxHeight = '0px';
+
+                                function open(){
+                                    btn.setAttribute('aria-expanded', 'true');
+                                    btn.textContent = openText;
+                                    wrapper.classList.remove('collapsed');
+                                    wrapper.classList.add('expanded');
+                                    // set explicit max-height to allow transition
+                                    wrapper.style.maxHeight = wrapper.scrollHeight + 'px';
+                                    wrapper.setAttribute('aria-hidden','false');
+                                    // iniciar el scroll inmediatamente para que se deslice al mismo tiempo que la apertura
+                                    // usamos requestAnimationFrame para asegurar que el cambio de maxHeight se aplicó
+                                    try{
+                                        requestAnimationFrame(() => {
+                                            // desplazamiento suave; empieza al instante
+                                            wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        });
+                                    }catch(e){
+                                        try{ wrapper.scrollIntoView(true); }catch(_){}
+                                    }
+                                }
+
+                                function close(){
+                                    btn.setAttribute('aria-expanded', 'false');
+                                    btn.textContent = closeText;
+                                    // set current scrollHeight to trigger transition
+                                    wrapper.style.maxHeight = wrapper.scrollHeight + 'px';
+                                    // force layout
+                                    window.getComputedStyle(wrapper).maxHeight;
+                                    wrapper.style.maxHeight = '0px';
+                                    wrapper.classList.remove('expanded');
+                                    wrapper.classList.add('collapsed');
+                                    wrapper.setAttribute('aria-hidden','true');
+                                }
+
+                                btn.addEventListener('click', function(){
+                                    const isOpen = btn.getAttribute('aria-expanded') === 'true';
+                                    if(isOpen) close(); else open();
+                                });
+
+                                // when finished opening, clear maxHeight so the container can grow/shrink naturally
+                                wrapper.addEventListener('transitionend', function(ev){
+                                    if(wrapper.classList.contains('expanded')){
+                                        // allow natural height after transition
+                                        wrapper.style.maxHeight = 'none';
+                                        // scroll into view so the user sees the info
+                                        try{ wrapper.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){}
+                                    }
+                                });
+                            }
+
+                            if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initToggle);
+                            else initToggle();
+                        })();
+                    </script>
 
                     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
                     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
